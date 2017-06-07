@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="utf-8">
+<title>tune-your-momentum-dl</title>
+
+
+<style type="text/css">
+body {
+  font-family: Helvetica, arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background-color: white;
+  padding: 30px; }
+
+body > *:first-child {
+  margin-top: 0 !important; }
+body > *:last-child {
+  margin-bottom: 0 !important; }
+
+a {
+  color: #4183C4; }
+a.absent {
+  color: #cc0000; }
+a.anchor {
+  display: block;
+  padding-left: 30px;
+  margin-left: -30px;
+  cursor: pointer;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0; }
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 20px 0 10px;
+  padding: 0;
+  font-weight: bold;
+  -webkit-font-smoothing: antialiased;
+  cursor: text;
+  position: relative; }
+
+h1:hover a.anchor, h2:hover a.anchor, h3:hover a.anchor, h4:hover a.anchor, h5:hover a.anchor, h6:hover a.anchor {
+  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA09pVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoMTMuMCAyMDEyMDMwNS5tLjQxNSAyMDEyLzAzLzA1OjIxOjAwOjAwKSAgKE1hY2ludG9zaCkiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6OUM2NjlDQjI4ODBGMTFFMTg1ODlEODNERDJBRjUwQTQiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6OUM2NjlDQjM4ODBGMTFFMTg1ODlEODNERDJBRjUwQTQiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDo5QzY2OUNCMDg4MEYxMUUxODU4OUQ4M0REMkFGNTBBNCIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDo5QzY2OUNCMTg4MEYxMUUxODU4OUQ4M0REMkFGNTBBNCIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PsQhXeAAAABfSURBVHjaYvz//z8DJYCRUgMYQAbAMBQIAvEqkBQWXI6sHqwHiwG70TTBxGaiWwjCTGgOUgJiF1J8wMRAIUA34B4Q76HUBelAfJYSA0CuMIEaRP8wGIkGMA54bgQIMACAmkXJi0hKJQAAAABJRU5ErkJggg==) no-repeat 10px center;
+  text-decoration: none; }
+
+h1 tt, h1 code {
+  font-size: inherit; }
+
+h2 tt, h2 code {
+  font-size: inherit; }
+
+h3 tt, h3 code {
+  font-size: inherit; }
+
+h4 tt, h4 code {
+  font-size: inherit; }
+
+h5 tt, h5 code {
+  font-size: inherit; }
+
+h6 tt, h6 code {
+  font-size: inherit; }
+
+h1 {
+  font-size: 28px;
+  color: black; }
+
+h2 {
+  font-size: 24px;
+  border-bottom: 1px solid #cccccc;
+  color: black; }
+
+h3 {
+  font-size: 18px; }
+
+h4 {
+  font-size: 16px; }
+
+h5 {
+  font-size: 14px; }
+
+h6 {
+  color: #777777;
+  font-size: 14px; }
+
+p, blockquote, ul, ol, dl, li, table, pre {
+  margin: 15px 0; }
+
+hr {
+  background: transparent url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAYAAACtBE5DAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMC1jMDYwIDYxLjEzNDc3NywgMjAxMC8wMi8xMi0xNzozMjowMCAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNSBNYWNpbnRvc2giIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6OENDRjNBN0E2NTZBMTFFMEI3QjRBODM4NzJDMjlGNDgiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6OENDRjNBN0I2NTZBMTFFMEI3QjRBODM4NzJDMjlGNDgiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDo4Q0NGM0E3ODY1NkExMUUwQjdCNEE4Mzg3MkMyOUY0OCIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDo4Q0NGM0E3OTY1NkExMUUwQjdCNEE4Mzg3MkMyOUY0OCIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PqqezsUAAAAfSURBVHjaYmRABcYwBiM2QSA4y4hNEKYDQxAEAAIMAHNGAzhkPOlYAAAAAElFTkSuQmCC) repeat-x 0 0;
+  border: 0 none;
+  color: #cccccc;
+  height: 4px;
+  padding: 0;
+}
+
+body > h2:first-child {
+  margin-top: 0;
+  padding-top: 0; }
+body > h1:first-child {
+  margin-top: 0;
+  padding-top: 0; }
+  body > h1:first-child + h2 {
+    margin-top: 0;
+    padding-top: 0; }
+body > h3:first-child, body > h4:first-child, body > h5:first-child, body > h6:first-child {
+  margin-top: 0;
+  padding-top: 0; }
+
+a:first-child h1, a:first-child h2, a:first-child h3, a:first-child h4, a:first-child h5, a:first-child h6 {
+  margin-top: 0;
+  padding-top: 0; }
+
+h1 p, h2 p, h3 p, h4 p, h5 p, h6 p {
+  margin-top: 0; }
+
+li p.first {
+  display: inline-block; }
+li {
+  margin: 0; }
+ul, ol {
+  padding-left: 30px; }
+
+ul :first-child, ol :first-child {
+  margin-top: 0; }
+
+dl {
+  padding: 0; }
+  dl dt {
+    font-size: 14px;
+    font-weight: bold;
+    font-style: italic;
+    padding: 0;
+    margin: 15px 0 5px; }
+    dl dt:first-child {
+      padding: 0; }
+    dl dt > :first-child {
+      margin-top: 0; }
+    dl dt > :last-child {
+      margin-bottom: 0; }
+  dl dd {
+    margin: 0 0 15px;
+    padding: 0 15px; }
+    dl dd > :first-child {
+      margin-top: 0; }
+    dl dd > :last-child {
+      margin-bottom: 0; }
+
+blockquote {
+  border-left: 4px solid #dddddd;
+  padding: 0 15px;
+  color: #777777; }
+  blockquote > :first-child {
+    margin-top: 0; }
+  blockquote > :last-child {
+    margin-bottom: 0; }
+
+table {
+  padding: 0;border-collapse: collapse; }
+  table tr {
+    border-top: 1px solid #cccccc;
+    background-color: white;
+    margin: 0;
+    padding: 0; }
+    table tr:nth-child(2n) {
+      background-color: #f8f8f8; }
+    table tr th {
+      font-weight: bold;
+      border: 1px solid #cccccc;
+      margin: 0;
+      padding: 6px 13px; }
+    table tr td {
+      border: 1px solid #cccccc;
+      margin: 0;
+      padding: 6px 13px; }
+    table tr th :first-child, table tr td :first-child {
+      margin-top: 0; }
+    table tr th :last-child, table tr td :last-child {
+      margin-bottom: 0; }
+
+img {
+  max-width: 100%; }
+
+span.frame {
+  display: block;
+  overflow: hidden; }
+  span.frame > span {
+    border: 1px solid #dddddd;
+    display: block;
+    float: left;
+    overflow: hidden;
+    margin: 13px 0 0;
+    padding: 7px;
+    width: auto; }
+  span.frame span img {
+    display: block;
+    float: left; }
+  span.frame span span {
+    clear: both;
+    color: #333333;
+    display: block;
+    padding: 5px 0 0; }
+span.align-center {
+  display: block;
+  overflow: hidden;
+  clear: both; }
+  span.align-center > span {
+    display: block;
+    overflow: hidden;
+    margin: 13px auto 0;
+    text-align: center; }
+  span.align-center span img {
+    margin: 0 auto;
+    text-align: center; }
+span.align-right {
+  display: block;
+  overflow: hidden;
+  clear: both; }
+  span.align-right > span {
+    display: block;
+    overflow: hidden;
+    margin: 13px 0 0;
+    text-align: right; }
+  span.align-right span img {
+    margin: 0;
+    text-align: right; }
+span.float-left {
+  display: block;
+  margin-right: 13px;
+  overflow: hidden;
+  float: left; }
+  span.float-left span {
+    margin: 13px 0 0; }
+span.float-right {
+  display: block;
+  margin-left: 13px;
+  overflow: hidden;
+  float: right; }
+  span.float-right > span {
+    display: block;
+    overflow: hidden;
+    margin: 13px auto 0;
+    text-align: right; }
+
+code, tt {
+  margin: 0 2px;
+  padding: 0 5px;
+  white-space: nowrap;
+  border: 1px solid #eaeaea;
+  background-color: #f8f8f8;
+  border-radius: 3px; }
+
+pre code {
+  margin: 0;
+  padding: 0;
+  white-space: pre;
+  border: none;
+  background: transparent; }
+
+.highlight pre {
+  background-color: #f8f8f8;
+  border: 1px solid #cccccc;
+  font-size: 13px;
+  line-height: 19px;
+  overflow: auto;
+  padding: 6px 10px;
+  border-radius: 3px; }
+
+pre {
+  background-color: #f8f8f8;
+  border: 1px solid #cccccc;
+  font-size: 13px;
+  line-height: 19px;
+  overflow: auto;
+  padding: 6px 10px;
+  border-radius: 3px; }
+  pre code, pre tt {
+    background-color: transparent;
+    border: none; }
+
+sup {
+    font-size: 0.83em;
+    vertical-align: super;
+    line-height: 0;
+}
+* {
+	-webkit-print-color-adjust: exact;
+}
+@media screen and (min-width: 914px) {
+    body {
+        width: 854px;
+        margin:0 auto;
+    }
+}
+@media print {
+	table, pre {
+		page-break-inside: avoid;
+	}
+	pre {
+		word-wrap: break-word;
+	}
+}
+</style>
+
+
+</head>
+
+<body>
+
+<p><img src="header-firier.png" alt="SGD with momentum"/></p>
+
+<blockquote>
+<p>by Ioannis Mitliagkas, Dan Iter and Chris Ré. <br>
+Includes results from a body of work performed by Stefan Hadjis, Ce Zhang and the authors.</p>
+</blockquote>
+
+<p>Deep learning is all the rage, and the method to solve the underlying learning problem is a technique called Stochastic Gradient Descent (SGD). Often, people use <em>momentum</em>, which is a parameter meant to help the algorithm converge faster. While everyone tunes the step-size, for some reason, many people have decided to fix the value of momentum to 0.9. Can we converge faster by tuning it? Yep!</p>
+
+<blockquote>
+<p>Point 1: <em>Tune your momentum!</em> The optimal setting for momentum depends on the data, the task and, as we&#39;ll see, the degree of asynchrony. So, tune momentum!</p>
+</blockquote>
+
+<p>To scale deep learning systems to many workers, one popular technique sounds a bit crazy: <em>remove all the locks</em>! Such methods are called &quot;asynchronous-parallel methods&quot; or <a href="https://arxiv.org/abs/1106.5730">Hogwild!</a>. These methods are used by real companies like Microsoft and Google&mdash;not just joker academics like us. However, they are not well understood. We recently described a new <a href="http://arxiv.org/pdf/1605.09774.pdf">theoretical link</a> between asynchrony and momentum.</p>
+
+<blockquote>
+<p>Point 2: Asynchrony <em>implicitly</em> increases the momentum. </p>
+</blockquote>
+
+<p>Our companion <a href="theory">blog post</a> gives a nice introduction to the theory behind this new line of work.</p>
+
+<p>These results hold on many systems: on <a href="https://github.com/HazyResearch/Omnivore">our prototype</a>, on <a href="https://github.com/dmlc/mxnet">MXNET</a>, and on <a href="https://github.com/tensorflow/tensorflow">TensorFlow</a>. We&#39;ve verified them from AlexNet to Inception v3 to Nihilism 4.0 (ok, I made that last one up). The point is that <strong>if you don&#39;t tune then your results can change qualitatively</strong>. For example, the <a href="http://arxiv.org/pdf/1412.6980v8.pdf">Adam</a> paper tunes the momentum and shows asynchrony is the method of choice. In contrast the latest <a href="http://arxiv.org/abs/1605.08695v2">TensorFlow paper</a> does not tune momentum and concludes synchronous is faster.</p>
+
+<p>In this post, we&#39;re not arguing about a particular strategy; we&#39;ve explored <a href="https://arxiv.org/abs/1606.04487">different levels of parallelism</a> and some asynchrony can be faster than either extreme. Here, our goal is to contribute one point to the discussion of how to build deep learning systems... and get us one step closer to the singularity? Either way, just remember:</p>
+
+<p align="center">
+<font size="+2">
+    "Tune your f*%&ing momentum."
+</font>
+</p>
+
+<p align="center">
+<img src="kurzweil.jpg" alt="A totally not made up endorsement for this blog post." width="300"/>
+</p>
+<p align="center">
+Ray knows tuning is the key to the singularity.
+</p>
+
+<p>This post contains a quick summary of results to make the above point. If you&#39;re interested in the theoretical exposition, try our <a href="theory">theory post</a>.</p>
+
+<h1 id="toc_0">Momentum is <strong>not</strong> part of the model; it&#39;s part of the <strong>algorithm</strong></h1>
+
+<p>Here is the typical SGD rule people use to train deep learning models:</p>
+
+<p><center>
+<img src="sgd-momentum.png" alt="SGD with momentum" height="18"/>
+</center></p>
+
+<p>where f is the loss, w<sub>t</sub> is the parameter value, 
+α<sub>t</sub> denotes the learning rate and    z<sub>i<sub>t</sub></sub> is the mini-batch used to evaluate the gradient at time t. Here μ is the parameter called <em>momentum</em>. Intuitively, it acts like a <em>fuzzy memory</em> pushing the next iteration in the same direction as the last step.</p>
+
+<blockquote>
+<p>The larger the μ, the bigger the push.</p>
+</blockquote>
+
+<p>Among deep learning practitioners&mdash;and some theoreticians&mdash;&quot;momentum&quot; is a synonym for 0.9. A large number of papers and tutorials prescribe 0.9 (<a href="http://www.cs.toronto.edu/%7Efritz/absps/imagenet.pdf">paper</a>, <a href="http://www.pdl.cmu.edu/PDL-FTP/CloudComputing/GeePS-cui-eurosys16.pdf">paper</a>, <a href="https://arxiv.org/abs/1604.00981v2">paper</a>, <a href="http://caffe.berkeleyvision.org/tutorial/solver.html">tutorial</a>, <a href="http://sebastianruder.com/optimizing-gradient-descent/index.html#momentum">tutorial</a>) or a simple schedule that is independent of any other aspects of the system (<a href="https://devblogs.nvidia.com/parallelforall/deep-learning-nutshell-history-training/">tutorial</a>, <a href="http://cs231n.github.io/neural-networks-3/">tutorial</a>, <a href="https://www.safaribooksonline.com/blog/2014/02/14/using-momentum-pylearn2/">tutorial</a>, <a href="http://danielnouri.org/notes/category/deep-learning/#changing-learning-rate-and-momentum-over-time">tutorial</a>). It&#39;s worth mentioning that <em>everyone</em> tunes other parameters such as the step size α<sub>t</sub>.</p>
+
+<p>So what happens if we tune the momentum? We see that <strong>tuning can significantly reduce the number of steps required to reach a given loss</strong>. To keep this short, we&#39;re going to report numbers to a fixed loss. But there is no funny business: they all achieve the same world-beating, cat-recognizing, AI-overlord-producing accuracy.</p>
+
+<p>We first show results on CIFAR. We vary the number of workers and report the number of iterations to reach a particular loss divided by the number of iterations it took the synchronous case: we call this a statistical &#39;penalty&#39;&mdash;note the iterations could be much faster without locking! We first draw the penalty curve we get by using the standard value of momentum, 0.9. Then, we draw the same curve when we grid-search momentum. Check out our <a href="https://arxiv.org/abs/1606.04487">paper</a> for more details on the experimental setup.  </p>
+
+<p>The first plot shows the penalty incurred under three different tuning strategies; the second shows the optimal momentum that we found.</p>
+
+<p align="center">
+<img src="cifar-negative-momentum.png" alt="CIFAR negative momentum"  width="400"/>
+</p>
+
+<p>Tuning momentum makes a <em>huge</em> difference: Tuning using non-negative momentum achieves a speed-up of about 2.5x when using 16 workers, and when we allow negative momentum values, the penalty for 16 workers reduces by another 2x. For any fixed number of workers, they run at exactly the same speed&mdash;only the tuned momentum converges <strong>MUCH</strong> faster.</p>
+
+<p>The next figure shows the tuned curve for ImageNet.
+Here we see that, for some datasets, <strong>tuning momentum can eliminate the penalty for asynchrony</strong>. </p>
+
+<p align="center">
+<img src="imagenet-se.png" alt="Tuning ImageNet"  width="400"/>
+</p>
+
+<p>So the take away:</p>
+
+<blockquote>
+<p>Point 1: &quot;Tune your f*%&amp;ing momentum.&quot;</p>
+</blockquote>
+
+<p><a name="asynchrony-begets-momentum"></a></p>
+
+<h2 id="toc_1">A Deeper Look: Asynchrony Induces Momentum</h2>
+
+<p>One question stands out: <em>Why is the momentum changing as we change the number of workers?</em> This is a little puzzling, but here is a rough way to think about it: more asynchrony increases the staleness of the updates. Since momentum is a kind of a fuzzy memory, increased staleness may be like having a longer fuzzy memory? Kind of, and we can be more precise...</p>
+
+<p>Our <a href="http://arxiv.org/pdf/1605.09774.pdf">theorem</a> predicts that, when training asynchronously, there are <strong>two sources of momentum</strong>:</p>
+
+<ol>
+<li><strong>Explicit or algorithmic momentum</strong>: the value we select as the momentum parameter.</li>
+<li><strong>Implicit or asynchrony-induced momentum</strong>: what asynchrony contributes.</li>
+</ol>
+
+<p>The total effective momentum is the sum of explicit and implicit terms. </p>
+
+<p>The second important theoretical prediction is <strong>more workers introduce more momentum</strong>. </p>
+
+<p>Consider the following thought experiment. We vary the number of asynchronous workers and, in each case, we tune for the optimal explicit momentum.  According to the model we would see a picture like the following:</p>
+
+<p align="center">
+<img src="theory-prediction.png" alt="Model prediction"  width="600"/>
+</p>
+
+<p>There is an optimal level of momentum equal to the tuned value for a single worker, the <em>synchronous</em> case. When we introduce a second worker, asynchrony induces non-zero momentum (orange bars). As we add more workers, we get more implicit momentum. </p>
+
+<h3 id="toc_2">What we see in experiments</h3>
+
+<p>So do we see this in experiments? Yes! We see it on our <a href="https://github.com/HazyResearch/Omnivore">system</a> as well as TensorFlow and MXnet&mdash;so there is no trickery in the implementation itself. Here, we grid search the learning rate and momentum for a number of different configurations and report the optimal explicit momentum values below for CIFAR and ImageNet. </p>
+
+<p align="center">
+<img src="practice-cifar.png" alt="Tuning CIFAR"  width="300"/>
+<img src="practice-imagenet.png" alt="Tuning ImageNet"  width="300"/>
+</p> 
+
+<p>We see the same monotonic behavior we expect from theory. As we increase the level of asynchrony we have to decrease the amount of explicit momentum.</p>
+
+<blockquote>
+<p>Point 2: Αsynchrony introduces momentum implicitly, so you&#39;d better tune momentum if you use asynchrony!</p>
+</blockquote>
+
+<h2 id="toc_3">What&#39;s next?</h2>
+
+<p>This is a new line of work for us, and we don&#39;t have many answers! </p>
+
+<ul>
+<li>Typically neither fully synchronous nor fully asynchronous training is optimal, and we need to consider some intermediate levels determined by the <em>hardware</em>. More on this in our <a href="https://arxiv.org/abs/1606.04487">paper</a>. </li>
+<li>With some industry friends, we plan to release our optimizer over popular systems. Since we then get to use it but don&#39;t have to maintain it: we get to have our cake and eat it too... which seems like the entire point of cake.</li>
+<li>Tuning parameters efficiently is a challenge! Ben has <a href="http://www.argmin.net/2016/06/20/hypertuning/">good news</a>... or he&#39;s just trolling us, we&#39;re not sure but that&#39;s why we love him.</li>
+<li>We don&#39;t know about you, but we welcome our AI overlords! It&#39;s great that AI likes recognizing cats. If we&#39;re going to be pets to the AIs, being a house cat seems fine.</li>
+</ul>
+
+
+
+
+</body>
+
+</html>
