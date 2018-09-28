@@ -1,0 +1,902 @@
+\documentclass{article} % For LaTeX2e
+\usepackage{iclr2018_conference,times}
+\usepackage{hyperref}
+\usepackage{url}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+
+\usepackage{amsmath,amsbsy,amssymb,amsfonts,amsthm}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{xspace}
+\usepackage{color}
+\usepackage{algorithm, algpseudocode}
+\usepackage{wrapfig}
+\def\compactify{\itemsep=0pt \topsep=0pt \partopsep=0pt \parsep=0pt}
+
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{capt-of}
+
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\mat}[1]{\bm{\mathit{#1}}}
+\algdef{SE}[VARIABLES]{States}{EndStates}
+   {\algorithmicvariables}
+   {\algorithmicend\ \algorithmicvariables}
+\algnewcommand{\algorithmicvariables}{\textbf{States}}
+\algrenewcommand\Return{\State \algorithmicreturn{} }
+\newcommand*{\AddNote}[4]{
+    \begin{tikzpicture}[overlay, remember picture]
+        \draw [decoration={brace,amplitude=0.5em},decorate,ultra thick,red]
+            ($(#3)!(#1.north)!($(#3)-(0,1)$)$) --  
+            ($(#3)!(#2.south)!($(#3)-(0,1)$)$)
+                node [align=center, text width=2.5cm, pos=0.5, anchor=west] {#4};
+    \end{tikzpicture}
+}
+
+
+\title{\tuner and the Art of Momentum Tuning}
+
+
+\author{
+  Jian Zhang, Ioannis Mitliagkas, Christopher R\'e \\
+  Department of Computer Science\\
+  Stanford University\\
+  \texttt{\{zjian,imit,chrismre\}@cs.stanford.edu} \\
+  %% examples of more authors
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \AND
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\newcommand{\tuner}{\textsc{YellowFin}\xspace}
+\newcommand{\asynctuner}{closed-loop \textsc{YellowFin}\xspace}
+\newcommand{\Asynctuner}{Closed-loop \textsc{YellowFin}\xspace}
+
+\newcommand{\yell}[1]{#1}
+\newcommand{\outline}[1]{}
+\newcommand{\forjian}[1]{{\color{magenta}FOR JIAN: #1}}
+\newcommand{\notes}[1]{{\color{green}NOTES: #1}}
+\newcommand{\jianedits}[1]{#1}
+
+\setlength{\parskip}{1.2ex}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\maketitle
+\vspace{-1em}
+%\begin{abstract}
+%\noindent Hyperparameter tuning is one of the big costs of deep learning. 
+%State-of-the-art optimizers, such as Adagrad, RMSProp and  Adam,
+%make things easier by adaptively tuning an individual learning rate for each variable.
+%This level of fine adaptation is understood to yield a more powerful method.
+%However, our experiments,  
+%show that hand-tuned stochastic gradient descent (SGD) can achieve better results. %, at the same rate or faster.
+%Recent theory suggests that adaptive methods converge to different minima.
+%We point out another factor: none of these methods tune their momentum parameter,
+%known to be important for deep learning objectives and the dynamics of asynchronous-parallel systems.
+%%shows that asynchrony introduces momentum-like dynamics,
+%%and that tuning down algorithmic momentum is important for efficient parallelization.  
+%We revisit the simple momentum SGD algorithm and show that hand-tuning a single learning rate and momentum makes it competitive with Adam.
+%We then analyze its robustness in learning rate misspecification and objective curvature variation.
+%Based on these insights, we design \tuner, an automatic tuner for momentum and learning rate in SGD.
+%\tuner optionally uses a momentum-sensing component with a negative-feedback loop to compensate for the dynamics of asynchrony on the fly.
+%We empirically show \tuner can converge in fewer iterations than Adam on large ResNet and LSTM models,
+%%	with a speedup of $0.8$x to $6.83$x in synchronous and up to $5.09$x in asynchronous settings.% on ResNet and LSTM models.
+%	with a speedup of $0.8$x to $3.28$x in synchronous and up to $2.69$x in asynchronous settings.% on ResNet and LSTM models.
+%\end{abstract}
+\begin{abstract}
+\noindent Hyperparameter tuning is one of the most time-consuming workloads in deep learning. 
+State-of-the-art optimizers, such as AdaGrad, RMSProp and  Adam,
+reduce this labor by adaptively tuning an individual learning rate for each variable.
+Recently researchers have shown renewed interest in simpler methods like momentum SGD as they may yield better results.
+Motivated by this trend, we ask: can simple adaptive methods, based on SGD perform as well or better? We revisit the momentum SGD algorithm and show that hand-tuning a single learning rate and momentum makes it competitive with Adam.
+We then analyze its robustness to learning rate misspecification and objective curvature variation.
+Based on these insights, we design \tuner, an automatic tuner for momentum and learning rate in SGD.
+%In asynchronous-parallel training, \tuner optionally uses a momentum-sensing component with a negative-feedback loop to compensate for the dynamics of asynchrony on the fly.
+\tuner optionally uses a negative-feedback loop to compensate for the momentum dynamics in asynchronous settings on the fly.
+We empirically show \tuner can converge in fewer iterations than Adam on ResNets and LSTMs for image recognition, language modeling and constituency parsing,
+%	with a speedup of $0.8$x to $6.83$x in synchronous and up to $5.09$x in asynchronous settings.% on ResNet and LSTM models.
+with a speedup of up to $3.28$x in synchronous and up to $2.69$x in asynchronous settings.% on ResNet and LSTM models.
+\end{abstract}
+
+
+\vspace{-0.75em}
+\section{Introduction}
+Accelerated forms of stochastic gradient descent (SGD), pioneered by
+\citet{polyak1964some} and \citet{nesterov1983method}, are the de-facto
+training algorithms for deep learning.
+Their use requires a sane choice for their {\em hyperparameters}: 
+typically a {\em learning rate} and {\em momentum parameter} \citep{sutskever2013importance}.
+However, tuning hyperparameters is arguably the most time-consuming part of deep learning, with many papers outlining best tuning practices written
+\citep{bengio2012practical,orr2003neural,bengio2012deep,bottou2012stochastic}.
+Deep learning researchers have proposed a number of methods to deal with hyperparameter optimization, ranging from grid-search and 
+smart black-box methods \citep{bergstra2012random,snoek2012practical}
+to adaptive optimizers.
+Adaptive optimizers aim to eliminate hyperparameter search by tuning on the fly for a single training run:
+algorithms like AdaGrad \citep{duchi2011adaptive}, RMSProp \citep{tieleman2012lecture} and Adam \citep{kingma2014adam} use the magnitude of gradient elements to tune learning rates {\em individually for each variable} and  have been largely successful in relieving practitioners of tuning the learning rate. 
+%\yell{
+%This increased flexibility sounds great,
+%however our experiments and recent analysis in literature \citep{wilson2017marginal} suggest that methods that adapt multiple learning rates, yield marginal benefits compared to momentum SGD.
+%\citet{wilson2017marginal} argue that those methods also have worse generalization.
+%We make another argument: adaptive methods also suffer from not tuning their momentum parameter.
+%}
+
+\begin{wrapfigure}[12]{R}{0.465\textwidth}
+\vspace{-2.4em}
+\begin{minipage}{1.0\linewidth}
+\begin{figure}[H]
+%	\includegraphics[width=1.\linewidth]{experiment_results/spotlight_default_adam.pdf}
+	\includegraphics[width=\linewidth]{experiment_results/spotlight.pdf}
+	\caption{\tuner in comparison to Adam on a ResNet (CIFAR100, cf.\ Section~\ref{sec:experiments}).	
+	}
+	\label{fig:spotlight}
+\end{figure}
+\end{minipage}
+\end{wrapfigure}
+Recently some researchers
+ have started favoring simple momentum SGD over the previously mentioned adaptive methods~\citep{chen2016thorough,gehring2017convolutional}, often reporting better test scores \citep{wilson2017marginal}.
+Motivated by this trend, we ask the question:
+can simpler adaptive methods, based on momentum SGD perform as well or better?
+%We revisit SGD with Polyak's momentum and a single learning rate for all variables.
+We empirically show that, with hand-tuned learning rate, Polyak's momentum SGD achieves faster convergence than Adam for a large class of models.
+We then formulate the optimization update as a dynamical system and study certain robustness properties of the momentum operator.
+Building on our analysis, we design \tuner, an automatic hyperparameter tuner for momentum SGD.
+\tuner simultaneously tunes the learning rate and momentum on the fly, and can handle the complex dynamics of asynchronous execution.
+Specifically:
+\begin{itemize}[leftmargin=2em]
+\setlength\itemsep{0.2em}
+\item
+In Section~\ref{sec:momentum_operator}, we demonstrate examples where momentum presents convergence robust to learning rate misspecification and curvature variation in a class of non-convex objectives;
+this robustness is desirable for deep learning.
+They stem from a known but obscure fact:
+the momentum operator's spectral radius is constant in a large subset of the hyperparameter space.
+\vspace{-1em}
+\item
+In Section~\ref{sec:sync_tuner}, we use these robustness insights and a simple quadratic model analysis to design \tuner, an automatic tuner for momentum SGD.
+\tuner uses on-the-fly measurements from the gradients to tune both a single learning rate and momentum.
+%\setlength\itemsep{0.2em}
+\item In Section~\ref{sec:stability}, we discuss common stability concerns related to the phenomenon of exploding gradients \citep{pascanu2013difficulty}.
+We present a natural extension to our basic tuner, using adaptive gradient clipping, to stabilize training for objectives with exploding gradients.
+%We present a natural extension to our basic tuner that stabilizes training for those objectives without sacrificing performance via adaptive gradient clipping.
+\item In Section~\ref{sec:async_tuner} we present \asynctuner, suited for asynchronous training.
+It uses a novel component for  measuring the total momentum in a running system, including any asynchrony-induced momentum, a phenomenon described in \cite{mitliagkas2016asynchrony}.
+This measurement is used in a negative feedback loop to control the value of algorithmic momentum.% on the fly.
+
+\end{itemize}
+
+
+We provide a thorough evaluation of the performance and stability of our tuner.
+In Section~\ref{sec:experiments}, we demonstrate empirically that \yell{on ResNets and LSTMs}
+\tuner can converge in fewer iterations compared to:
+(i) hand-tuned momentum SGD (up to $1.75$x speedup);
+and (ii) default Adam ($0.8$x to $3.3$x speedup).
+%and (ii) default Adam (0.8x to 6.83x speedup).
+Under asynchrony, the closed-loop control architecture speeds up \tuner, 
+making it up to $2.69$x faster than Adam. 
+%making it up to $5.08$x faster than Adam. 
+Our experiments include runs on $7$ different models, randomized over at least $5$ different random seeds. 
+\tuner is stable and achieves consistent performance: the normalized sample standard deviation of test metrics varies from $0.05\%$ to $0.6\%$.
+We released PyTorch and TensorFlow implementations, that can be used as drop-in replacements for any optimizer.
+%\footnote{ TensorFlow implementation: \url{https://github.com/JianGoForIt/YellowFin}}\footnote{PyTorch implementation: \url{https://github.com/JianGoForIt/YellowFin_Pytorch}.}.
+%\tuner has also been implemented by various members of the ML community in Caffe2, Tensor2Tensor. 
+\tuner has also been implemented in other various packages.
+Its large-scale deployment in industry has taught us important lessons about stability; we discuss those challenges and our solution in Section~\ref{sec:stability}.
+We conclude with related work and discussion in Section~\ref{sec:related} and~\ref{sec:discussion}.
+
+
+
+\section{The momentum operator}
+\label{sec:momentum_operator}
+
+\newcommand{\gc}{generalized curvature\xspace}
+\newcommand{\Gc}{Generalized curvature\xspace}
+\vspace{-0.25em}
+In this section, we identify the main technical insight behind the design of \tuner. 
+%After preliminaries on momentum gradient descent, 
+We demonstrate that momentum can exhibit convergence that is robust to learning rate misspecification.
+This means that momentum is ``forgiving'' to less-than-perfect choices of the learning rate.
+We also discuss how momentum can be robust to 
+curvature variation for certain convex, and non-convex objectives.
+This means that in some cases it makes progress towards a minimum at a constant rate, even when the landscape changes from steep to flat. 
+Both  properties are desirable for deep learning objectives.
+%In this section, we analyze the main insights for designing \tuner, showing that momentum is robust to learning rate misspecification and curvature variation for a class of non-convex objectives.
+%%momentum is robust to learning rate misspecification and curvature variation for a class of non-convex objectives.
+
+%In this section, we analyze two properties of momentum: it is robust to learning rate misspecification and to curvature variation for a class of non-convex objectives, both desirable for deep learning.
+
+
+\vspace{-0.5em}
+\subsection{Preliminaries}
+\label{sec:robust_preliminaries}
+We aim to minimize some objective $f(x)$.
+In machine learning, $x$ is referred to as {\em the model} and the objective is some {\em loss function}.
+A low loss implies a well-fit model.
+Gradient descent-based procedures use the gradient of the objective function, $\nabla f(x)$, to update the model iteratively.
+These procedures can be characterized by the convergence rate with respect to the distance to a minimum.
+\begin{definition} [Convergence rate]
+	Let $x^*$ be a local minimum of $f(x)$ and $x_t$ denote the model after $t$ steps of an iterative procedure. %$f(x):\mathbb{R}^d \mapsto \mathbb{R}$ 
+%	and $x_t$ be the model after $t$ steps in an iterative minimization procedure. 
+	We say that the iterates converge to $x^*$ with linear rate $\beta$,
+	if \[ \| x_{t} - x^* \| = O(\beta^t \| x_0 - x^* \|).\]
+\end{definition}
+Polyak's momentum gradient descent \citep{polyak1964some} is one of these iterative procedures, given by
+%Polyak's momentum gradient descent update \citep{polyak1964some} is given by
+\begin{align}
+	x_{t+1}  &= x_t - \alpha \nabla f(x_t) + \mu (x_t - x_{t-1}),
+	\label{eqn:momentum_gd}
+\end{align} 
+where $\alpha$ denotes the single learning rate and $\mu$ the single momentum for the entire model.   
+Momentum's main appeal is its established ability to {accelerate convergence} \citep{polyak1964some}. 
+On a strongly convex, smooth function with condition number $\kappa$, the optimal convergence rate of gradient descent without momentum
+ is $O(\frac{\kappa-1}{\kappa+1})$~\citep{nesterov2013introductory}.
+On the other hand, for certain classes of strongly convex and smooth functions, like quadratics, the optimal momentum value,
+\begin{equation}
+	\mu^* = \left(\frac{\sqrt{\kappa}-1}{\sqrt{\kappa}+1}\right)^2,
+	\label{eqn:optimal_momentum}
+\end{equation}
+yields the optimal accelerated linear convergence rate $O(\frac{\sqrt{\kappa}-1}{\sqrt{\kappa}+1})$.
+It is important to stress that 
+{\em this guarantee does not generalize to arbitrary non-quadratics} \citep{lessard2016analysis}.
+Nonetheless, this linear rate can often be observed in practice even on non-quadratics (cf. Section~\ref{sec:robust_properties}).
+
+{\bf The main insight we expose has been hidden away in proofs:}
+when using gradient descent without momentum, 
+we get different rates of convergence to the minimum from different directions if their curvature differs; the achieved overall rate, $O(\frac{\kappa-1}{\kappa+1})$, is just the slowest rate over all directions. 
+In sharp contrast, Polyak's momentum in \eqref{eqn:momentum_gd} converges to a minimum with the accelerated linear rate $\sqrt{\mu^*}$ from {\em all directions},
+when we use the optimal momentum value, $\mu^*$.
+This can be seen by analyzing a quadratic, though it might not generalize to all strongly convex, smooth functions.
+Concretely, consider a strongly convex quadratic, and let $x_{i, t}$ and $x_i^*$ be the i-th coordinates of $x_t$ and $x^*$.
+%the optimum and the model after $t$ iterations respectively, 
+For any $\mu \geq \mu^*$, there exists a range of learning rates, $\alpha$, such that $| x_{i, t} - x_i^* | \leq \sqrt{\mu}^t | x_{i,0} - x_i^* |$ for any axis $i$.
+The same constant convergence rate holds along any arbitrary projection.
+
+In the next subsection, we unpack, extend and use this insight in two novel ways:
+(i) robustness to learning rate misspecification: 
+this is the dual view to the curvature robustness described above and means we do not need to be exact when tuning the learning rate;
+(ii) robustness to variations in steepness/flatness {\em along a scalar-slice or one-dimensional objective}:
+we discussed curvature variation along different directions above, as well as the role of the condition number.
+Next we will see how curvature and the condition number admit a meaningful generalization that allows us to measure variations in steepness with respect to some minimum.
+We will see that we can observe constant linear rates and acceleration even on one-dimensional objectives by using our rule to tune a positive value for the momentum parameter.
+Then we extend this tuning rule to multi-dimensional objectives.
+
+%(e.g.\ the `$\mu=0.0$` curve in Figure~\ref{fig:lr_robustness})
+%on quadratics,
+%$\mu^*$ is the smallest value for which the update in~\eqref{eqn:momentum_gd} can achieve \emph{the same linear convergence rate 1) along all axes with varying curvatures, 2) over a range of different learning rate}.  For quadratics, curvature varies across axes but remains constant on the slice along each axis. In Section~\ref{sec:robust_properties}, we show with examples that similar robust linear convergence can be achieved in a class of one dimensional non-convex objectives where curvature varies.
+%{\bf This fact is often hidden away in proofs}. 
+%We shed light on some of its previously unknown implications in Section~\ref{sec:robust_properties}.
+
+% {\bf This property is often hidden away in proofs}. We extend the intuition of this property from quadratics to one dimensional non-quadratic in Section~\ref{sec:robust_properties}. 
+
+%We shed light on some of its previously unknown implications in Section~\ref{sec:robust_properties}. % and use them in our tuner in Section~\ref{sec:sync_tuner}.
+
+
+
+\subsection{Robustness properties of the momentum operator}
+\label{sec:robust_properties}
+In this section we analyze the dynamics of momentum on a simple class of one dimensional, non-convex objectives.
+We first introduce the notion of {\em generalized curvature} and use it to describe the momentum operator.
+Then we discuss the robustness properties of the momentum operator. 
+%\forjian{Should we explicitly mention what is the robustness?}
+%In the last section, we discuss the same linear convergence rate of Polyak's momentum gradient descent on different axes with different curvatures for quadratics. 
+%For quadratics, the curvature along each axes is constant. 
+%In this section, we extend the discussion to a simple class of one dimensional non-convex functions with curvature variations.
+%%In this section we analyze the dynamics of momentum on a simple class of one dimensional, non-convex objectives.
+%We first introduce the notion of {\em generalized curvature} and use it to describe the momentum operator.
+%Then we discuss the robustness properties of the momentum operator: achieving linear convergence rate 
+
+Curvature along different directions is encoded in the different eigenvalues of the Hessian. 
+%The classic condition number captures the local variation of curvature, i.e. the eigenvalues of local Hessian.
+It is the only feature of a quadratic needed to characterize the convergence of gradient descent. Specifically, it achieves a linear convergence rate $|1 - \alpha h_c|$ on one dimensional quadratics with curvature $h_c$. 
+On non-quadratic objectives, this neat characterization is unfortunately lost.
+We can recover it by defining a new kind of ``curvature'' with respect to a specific minimum.
+
+\begin{definition}[\Gc]
+\label{def:generalized_curvature}
+Let $x^*$ be a local minimum of $f(x):\mathbb{R}\rightarrow\mathbb{R}$.
+Generalized curvature with respect to $x^*$, denoted by $h(x)$, satisfies the following.
+\begin{equation}
+	 f'(x) = h(x) (x - x^*). 
+	\label{eqn:generalized_curvature}
+\end{equation}
+%We call $h(x)$ the {\em generalized curvature}.
+\end{definition}
+
+\Gc describes, in some sense, non-local curvature with respect to minimum $x^*$.
+It coincides with curvature on quadratics.
+On non-quadratic objectives, it characterizes the convergence behavior of gradient descent-based algorithms.
+Specifically, we recover the fact that starting at point $x_t$, distance from minimum $x^*$ is reduced by $|1-\alpha h(x_t)|$ in one step.
+%It can captures the longer-range, non-local variations of curvature.
+%For quadratic objectives, it coincides with the standard definition of curvature, and is the sole quantity related to the objective that influences the dynamics of gradient descent.
+%For example, the contraction of a gradient descent step is $1-\alpha h(x_t)$.
+Using a state-space augmentation, we can rewrite the momentum update of~\eqref{eqn:momentum_gd}, and define the {\em momentum operator} $\mat{A}_t$ at time $t$ as
+\begin{align}
+{\begin{pmatrix}
+x_{t+1} - x^*\\
+x_t - x^* \\
+\end{pmatrix}}
+=
+{\begin{bmatrix}
+1-\alpha h(x_t) + \mu & - \mu \\
+1 & 0 \\
+\end{bmatrix}}
+{\begin{pmatrix}
+x_t - x^* \\
+x_{t-1} - x^*\\
+\end{pmatrix}}
+\triangleq
+\mat{A}_t
+{\begin{pmatrix}
+x_t - x^* \\
+x_{t-1} - x^*\\
+\end{pmatrix}}.
+\label{equ:one_dim_22_rec}
+\end{align}
+
+\begin{lemma}[Robustness of the momentum operator]
+\label{lem:robustness}
+Assume that generalized curvature, $h$, and hyperparameters $\alpha,\mu$ satisfy
+\begin{align}
+{(1-\sqrt{\mu})^2} &\leq \alpha h(x_t) \leq {(1+\sqrt{\mu})^2}.
+\label{eqn:robust_region}
+\end{align}
+%then the spectral radius of the momentum operator, which describes convergence behavior, only depends on  momentum: $	\rho(\mat{A}_t) = \sqrt{\mu}
+Then the spectral radius of the momentum operator at step $t$ only depends on the  momentum parameter: $	\rho(\mat{A}_t) = \sqrt{\mu}$. 
+We say that \eqref{eqn:robust_region} defines the {\bf robust region}.
+The proof is given in Appendix~\ref{sec:proof_robustness}.
+\end{lemma}
+The spectral radius of an operator, $A_t$ gives the convergence rate when the same operator is applied multiple times, i.e.\ $\mat{A}_t\cdots\mat{A}_t$.
+In this case, different operators are applied, $\mat{A}_t\cdots\mat{A}_1$,
+all of which have the same spectral radius. 
+This means that, as already discussed, {\em we do not give convergence rate guarantees}.
+However, we do show examples where the time-homogeneous spectral radius guaranteed by Lemma~\ref{lem:robustness} translates to constant linear rates on non-convex objectives and predicts the convergence rate of most model variables in deep learning objectives (Figure~\ref{fig:curvature_robustness}).
+Next we discuss two useful implications of this result.
+%Thus we explain Lemma~\ref{lem:robustness} as the {\bf robustness properties} of momentum operator: \emph{time-homogeneous spectral radii $\sqrt{\mu}$ implies asymptotic linear convergence robust with respect to learning rate and to curvature variations}.
+%Note the spectral radius of the composition of operators $\mat{A}_t\cdots\mat{A}_1$, all with spectral radius $\sqrt{\mu}$, does not always follow the asymptotics of $\sqrt{\mu}^t$.
+%In other words, {\em we do not provide a convergence rate guarantee}. Instead, we show the robustness properties with examples.
+
+\begin{wrapfigure}[12]{R}{0.265\textwidth}
+\vspace{-2.8em}
+\begin{minipage}{1.0\linewidth}
+\begin{figure}[H]
+  \includegraphics[width=0.97\linewidth]{figures/spectral_radii}
+  \vspace{-0.75em}
+\caption{
+Momentum operator on scalar quadratic.
+}
+\label{fig:lr_robustness}
+\end{figure}
+\end{minipage}
+\end{wrapfigure}
+\paragraph{Momentum is robust to learning rate misspecification}
+\label{sec:lr_robustness}
+For a one dimensional strongly convex quadratic objective,
+we get $h(x)=h$ for all $x$ and Lemma~\ref{lem:robustness} suggests that $\rho(\mat{A}_t)=\sqrt{\mu}$ as long as
+\begin{align}
+{(1-\sqrt{\mu})^2/h} &\leq \alpha \leq {(1+\sqrt{\mu})^2/h}.
+\label{eqn:lr_robustness}
+\end{align}
+
+In Figure~\ref{fig:lr_robustness}, we plot $\rho(\mat{A}_t)$ for different $\alpha$ and $\mu$.
+As we increase the value of momentum, the optimal rate of convergence $\sqrt{\mu}$ is achieved by an ever-widening range of learning rates. 
+We also note that for objectives with large condition number, higher values of momentum are {\em both faster and more robust}.
+{\bf This property influences the design of our tuner:} as long as the learning rate satisfies \eqref{eqn:lr_robustness}, we are in the {\em robust region} and 
+{\em all momentum operators have the same spectral radius}.
+In the trivial case of quadratics, this means that we get a convergence rate of $\sqrt{\mu}$, independent of the learning rate.
+Having established that, we can just focus on optimally tuning momentum.
+
+
+
+
+\paragraph{Momentum is robust to curvature variation}
+\label{sec:curvature_robustness}
+
+As discussed in Section~\ref{sec:robust_preliminaries}, the intuition hidden in classic results
+is that for certain strongly convex smooth objectives, momentum larger than the value in \eqref{eqn:optimal_momentum} guarantees the same rate of linear convergence along all axes of different curvature. 
+We extend this intuition to certain one dimensional non-convex functions, where steepness---and, as a result, contractivity---vary as we move along.
+Lemma~\ref{lem:robustness} guarantees a constant, time-homogeneous spectral radius for the momentum operators $(\mat{A}_t)_t$ 
+assuming \eqref{eqn:robust_region} is satisfied at every step. 
+This assumption motivates a ``long-range'' extension of the condition number.
+\begin{definition}[Generalized condition number]
+We define the generalized condition number (GCN) of a scalar function, $f(x):\mathbb{R}\rightarrow \mathbb{R}$, to be the dynamic range of its generalized curvature, $h(x)$:
+\begin{equation}
+	\nu = \frac{\sup_{x \in dom(f)} h(x)}{ \inf_{x \in dom(f)} h(x)}
+\end{equation}
+\end{definition}
+The GCN captures variations in generalized curvature along a scalar slice.
+From Lemma~\ref{lem:robustness} we get
+\begin{equation}
+	\mu \geq \mu^* = \left(\frac{\sqrt{\nu}-1}{\sqrt{\nu}+1}\right)^2,
+	\quad
+	\frac{(1-\sqrt{\mu})^2}{\inf_{x \in dom(f)}h(x)} \leq \alpha \leq \frac{(1+\sqrt{\mu})^2}{\sup_{x \in dom(f)}h(x)}
+	\label{eqn:noiseless_tuning_rule}
+\end{equation}
+where the momentum and learning rate values are in the robust region.
+The momentum and learning rate values in~\eqref{eqn:noiseless_tuning_rule} guarantee a homogeneous spectral radius of $\sqrt{\mu}$ for all $(\mat{A}_t)_t$.
+%Specifically, $\mu^*$ is the smallest momentum value that guarantees homogeneous spectral radii.
+%The spectral radius of an operator describes its asymptotic convergence behavior. 
+%However, the product of a sequence of operators $\mat{A}_t\cdots\mat{A}_1$ all with spectral radius $\sqrt{\mu}$ does not always follow the asymptotics of $\sqrt{\mu}^t$.
+%In other words, {\em we do not provide a convergence rate guarantee}.
+%Instead, we provide evidence in support of this intuition. 
+%We demonstrate with examples where the homogeneous spectral radii implies empirical asymptotic linear convergence behavior.
+In Figure~\ref{fig:curvature_robustness}(a), the non-convex objective,
+composed of two quadratics with curvatures $1$ and $1000$, has a GCN of $1000$.
+Using the tuning rule of \eqref{eqn:noiseless_tuning_rule}, and running the momentum algorithm (Figure~\ref{fig:curvature_robustness}(b)) practically yields the linear convergence predicted by Lemma~\ref{lem:robustness}.
+%In Figures~\ref{fig:curvature_robustness}(c,d) we demonstrate that for an LSTM,
+%the majority of model variables follow a $\sqrt{\mu}$ convergence rate.
+In Figures~\ref{fig:curvature_robustness}(c,d), we demonstrate an LSTM as another example. As we increase the momentum value (the same for all variables in the model), more model variables follow the predicted $\sqrt{\mu}$ convergence rate.
+\textbf{This property influences the design of our tuner:}
+in the next section, we generalize the tuning rules of \eqref{eqn:noiseless_tuning_rule} to
+appropriately handle SGD noise.
+%in the next section we use the tuning rules of \eqref{eqn:noiseless_tuning_rule} in \tuner,
+%generalized appropriately to handle SGD noise.
+
+
+
+
+
+
+\begin{figure}[t]
+\centering
+\begin{tabular}{c c c c}
+  \includegraphics[width=0.23\linewidth]{figures/non_convex_toy} &
+  \includegraphics[width=0.24\linewidth]{figures/non_convex_constant_rate} &
+  \includegraphics[width=0.24\linewidth]{figures/constant_rate_09} &
+  \includegraphics[width=0.19\linewidth]{figures/constant_rate_099} \\
+  (a) & (b) & (c) &(d)
+\end{tabular}
+\caption{(a) Non-convex toy example;
+(b) constant convergence rate achieved empirically on the objective of (a) tuned according to \eqref{eqn:noiseless_tuning_rule};
+(c,d)
+LSTM on MNIST: as momentum increases, more variables (shown in grey) fall in the robust region and follow the robust rate, $\sqrt{\mu}$.}
+\label{fig:curvature_robustness}
+\end{figure}
+
+
+
+
+
+
+
+
+
+
+
+\input{tuner}
+
+\input{stability}
+%\section{Stability on non-smooth objectives}
+%\label{sec:stability}
+%
+%\begin{figure}[t]
+%\centering
+%  \includegraphics[width=0.8\linewidth]{experiment_results/clipping_example.pdf} 
+%\caption{An LSTM with hidden units exhibits exploding gradients.
+%The proposed adaptive threshold for gradient clipping (blue line) keeps instabilities contained.
+%The network is a small variation of the architecture presented in \citep{zhu2016trained}.}
+%\label{fig:stability}
+%\end{figure}
+%
+%
+%Section~\ref{sec:sync_tuner} describes the core of the \tuner tuner.
+%It uses the basic tuning rules extracted from a noisy quadratic model.
+%To engineer our implementation on arbitrary objectives, we calculate smoothed, rough approximations of curvature ranges, a distance form a local minimum and a gradient variance.
+%However, certain neural network objectives can involve arbitrary non-linearities, and large Lipschitz constants \citep{szegedy2013intriguing}.
+%Furthermore, the process of training them is inherently non-stationary, with the landscape abruptly switching from flat to steep areas. 
+%In particular, the objective functions associated with RNNs   with hidden units can exhibit occasional but very steep slopes \citep{pascanu2013difficulty}.
+%So, it is not always safe to assume that the statistics we calculated so far will accurately represent the objective function in the next step.
+%
+%In Figure~\ref{fig:stability}, we present such an example of an LSTM that exhibits this 'exploding gradient' issue.
+%To deal with this issue, we propose a very natural addition to our basic tuner, that performs {\em adaptive gradient clipping}. 
+%Gradient clipping has been established in literature as a standard---almost necessary---tool for training such objectives \citep{pascanu2013difficulty,Goodfellow-et-al-2016,gehring2017convolutional}. 
+%However, the classic tradeoff between adaptivity and stability applies: 
+%setting a clipping threshold that is too low can hurt performance;
+%setting it to be high, can compromise stability.
+%\tuner, keeps running estimates of extremal gradient magnitude squares, $h_{max}$ and $h_{min}$ in order to estimate a generalized condition number.
+%We posit that $\sqrt{h_{max}}$ is an ideal gradient norm threshold for adaptive clipping.
+%In order to improve robustness to extreme gradient spikes, like the ones in Figure~\ref{fig:stability}, we also limit the growth rate of the envelope $h_{max}$ as follows:
+%\begin{equation}
+% h_{max} 
+% \leftarrow
+% \beta \cdot h_{max}
+% 	+ (1-\beta) \cdot \textrm{min}\left\{
+% 		h_{max,t}, 100 \cdot h_{max}
+% 	\right\}
+%\end{equation}
+%\begin{table}
+%\centering
+%\begin{tabular} { c | c | c | c}
+%\toprule
+%	& Default w/o clip. & Default w/ clip. & YF \\
+%\midrule
+%\midrule
+%	Validation loss & diverge & 2.86 & 2.75 \\
+%	Validation BLEU4 & diverge & 30.75 & 31.59 \\ 
+%\bottomrule
+%\end{tabular}
+%\caption{German-English translation performance using convolutional sequence to sequence learning.}
+%\label{tab:conv_seq}
+%\end{table}
+%
+%We demonstrate the performance of YellowFin with adaptive clipping on IWSLT 2014 German-English translation task using convolutional sequence to sequence learning~\citep{gehring2017convolutional}. We train the model for 120 epochs and report the best validation loss, as well as the best BLEU4 score. We follow the default optimizer setting in~\citep{gehring2017convolutional}, where manually set strict clipping is applied before performing SGD with learning rate 0.25 and momentum 0.99. The optimizer diverges when the clipping is removed. In Table~\ref{tab:conv_seq}, we can see YellowFin, with adaptive clipping, can outperform the default optimizer with manually set clipping in both validation loss and BLEU4 score.
+%Our proposed adaptive clipping helps stabilize difficult objectives, without sacrificing performance.
+%In Appendix~\ref{sec:infl_clip} we demonstrate that on models that do not exhibit instabilities, our clipping does not hurt performance.
+%
+%%Thinking fast and slow approach:
+%%- slow layer, the basic tuner we described
+%%- fast layer: applies clipping based on the statistics estimated
+%%- *and* we don’t let the estimates grow too quickly
+%
+
+
+
+\input{async_yf}
+
+
+\input{experiments.tex}
+
+\vspace{-0.5em}
+\section{Related work}
+\label{sec:related}
+\vspace{-0.45em}
+%Many techniques have been proposed on tuning hyperparameters for optimizers.~\citet{bergstra2012random} investigate random search for general tuning of  hyperparameters. 
+%Bayesian approaches~\citep{snoek2012practical} model evaluation metrics as samples from a Gaussian process guiding optimal hyperparameter search. 
+%Another trend is the adaptive methods which require less manual tuning than SGD:
+%Adagrad~\citep{duchi2011adaptive} is one of the first method with per-dimension learning rate, followed by RMSProp~\citep{tieleman2012lecture} and Adam~\citep{chilimbi2014project} using different learning rate rules. 
+%\citet{schaul2013no} use a noisy quadratic model similar to ours to extract learning rate tuning rule in Vanilla SGD.
+%However their approach does not use momentum which is essential in training modern neural networks. Existing adaptive momentum approach either only consider the non-stochastic setting~\citep{graepel2002stable,rehman2011effect,hameed2016back,swanston1994simple,ampazis2000levenberg,qiu1992accelerated} or only analyze stochasticity with $O(1/t)$ learning rate. In the contrast, we aim at practical momentum adaptivity for stochastically  training of modern neural networks, as well as simultaneously presenting learning rate adaptivity.  
+Many techniques have been proposed on tuning hyperparameters for optimizers. General hyperparameter tuning approaches, such as random search~\citep{bergstra2012random} and Bayesian approaches~\citep{snoek2012practical, hutter2011sequential}, directly applies to optimizer tuning.  
+As another trend, adaptive methods, including AdaGrad~\citep{duchi2011adaptive}, RMSProp~\citep{tieleman2012lecture} and Adam~\citep{chilimbi2014project}, uses per-dimension learning rate. 
+%They typically require less manual tuning than SGD. 
+\citet{schaul2013no} use a noisy quadratic model similar to ours to extract learning rate tuning rule in Vanilla SGD.
+However they do not use momentum which is essential in training modern neural networks. Existing adaptive momentum approach either consider the deterministic setting~\citep{graepel2002stable,rehman2011effect,hameed2016back,swanston1994simple,ampazis2000levenberg,qiu1992accelerated} or only analyze stochasticity with $O(1/t)$ learning rate~\citep{leen1994optimal}. In the contrast, we aim at practical momentum adaptivity for stochastically training neural networks.  
+
+\vspace{-0.5em}
+\section{Discussion}
+\label{sec:discussion}
+\vspace{-0.45em}
+We presented \tuner, the first optimization method that automatically tunes momentum as well as the learning rate of momentum SGD. 
+\tuner outperforms the state-of-the-art adaptive optimizers on a large class of models both in synchronous and asynchronous settings.
+It estimates statistics purely from the gradients of a running system,
+and then tunes the hyperparameters of momentum SGD based on noisy, local quadratic approximations.
+As future work, we believe that more accurate curvature estimation methods,
+like the $bbprop$ method~\citep{martens2012estimating} can further improve \tuner.
+We also believe that our closed-loop momentum control mechanism in Section~\ref{sec:async_tuner} 
+could accelerate convergence for other adaptive methods in asynchronous-parallel settings.
+
+
+%\section{Acknowledgements}
+%We thank Bryan He, Paroma Varma, Chris De Sa, Theodoros Rekatsinas, David Grangier, Olexa Bilaniuk and Rosemary Ke for helpful discussions. We gratefully acknowledge the support of the Defense Advanced Research Projects Agency (DARPA) SIMPLEX program under No. N66001-15-C-4043, the D3M program under No. FA8750-17-2-0095, the National Science Foundation (NSF) CAREER Award under No. IIS- 1353606, the Office of Naval Research (ONR) under awards No. N000141210041 and No. N000141310129, a Sloan Research Fellowship, the Moore Foundation, an Okawa Research Grant, Toshiba, and Intel. Any opinions, findings, and conclusions or recommendations expressed in this material are those of the authors and do not necessarily reflect the views of DARPA, NSF, ONR, or the U.S. government.
+
+
+\bibliographystyle{unsrtnat}
+\bibliography{arxiv,iclr2018_conference}
+
+\appendix 
+\input{main_lemma}
+%\input{multi_dim}
+%\input{dist_small_lstm}
+\input{opt}
+%\input{async_yf}
+\input{practical_impl}
+\input{clip_influence}
+\input{async_app}
+\input{model_spec}
+\input{exp_spec}
+%\input{test_perp}
+
+
+
+
+
+\end{document}
+
+
+
+%\title{Formatting Instructions for ICLR 2018 / \\ Conference Submissions}
+%
+%% Authors must not appear in the submitted version. They should be hidden
+%% as long as the \iclrfinalcopy macro remains commented out below.
+%% Non-anonymous submissions will be rejected without review.
+%
+%\author{Antiquus S.~Hippocampus, Natalia Cerebro \& Amelie P. Amygdale \thanks{ Use footnote for providing further information
+%about author (webpage, alternative address)---\emph{not} for acknowledging
+%funding agencies.  Funding acknowledgements go at the end of the paper.} \\
+%Department of Computer Science\\
+%Cranberry-Lemon University\\
+%Pittsburgh, PA 15213, USA \\
+%\texttt{\{hippo,brain,jen\}@cs.cranberry-lemon.edu} \\
+%\And
+%Ji Q. Ren \& Yevgeny LeNet \\
+%Department of Computational Neuroscience \\
+%University of the Witwatersrand \\
+%Joburg, South Africa \\
+%\texttt{\{robot,net\}@wits.ac.za} \\
+%\AND
+%Coauthor \\
+%Affiliation \\
+%Address \\
+%\texttt{email}
+%}
+%
+%% The \author macro works with any number of authors. There are two commands
+%% used to separate the names and addresses of multiple authors: \And and \AND.
+%%
+%% Using \And between authors leaves it to \LaTeX{} to determine where to break
+%% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+%% puts 3 of 4 authors names on the first line, and the last on the second
+%% line, try using \AND instead of \And before the third author name.
+%
+%\newcommand{\fix}{\marginpar{FIX}}
+%\newcommand{\new}{\marginpar{NEW}}
+%
+%%\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
+%
+%\begin{document}
+%
+%
+%\maketitle
+%
+%\begin{abstract}
+%The abstract paragraph should be indented 1/2~inch (3~picas) on both left and
+%right-hand margins. Use 10~point type, with a vertical spacing of 11~points.
+%The word \textsc{Abstract} must be centered, in small caps, and in point size 12. Two
+%line spaces precede the abstract. The abstract must be limited to one
+%paragraph.
+%\end{abstract}
+%
+%\section{Submission of conference papers to ICLR 2018}
+%
+%ICLR requires electronic submissions, processed by
+%\url{https://openreview.net/}. See ICLR's website for more instructions.
+%
+%If your paper is ultimately accepted, the statement {\tt
+%  {\textbackslash}iclrfinalcopy} should be inserted to adjust the
+%format to the camera ready requirements.
+%
+%The format for the submissions is a variant of the NIPS format.
+%Please read carefully the instructions below, and follow them
+%faithfully.
+%
+%\subsection{Style}
+%
+%Papers to be submitted to ICLR 2018 must be prepared according to the
+%instructions presented here.
+%
+%%% Please note that we have introduced automatic line number generation
+%%% into the style file for \LaTeXe. This is to help reviewers
+%%% refer to specific lines of the paper when they make their comments. Please do
+%%% NOT refer to these line numbers in your paper as they will be removed from the
+%%% style file for the final version of accepted papers.
+%
+%Authors are required to use the ICLR \LaTeX{} style files obtainable at the
+%ICLR website. Please make sure you use the current files and
+%not previous versions. Tweaking the style files may be grounds for rejection.
+%
+%\subsection{Retrieval of style files}
+%
+%The style files for ICLR and other conference information are available on the World Wide Web at
+%\begin{center}
+%   \url{http://www.iclr.cc/}
+%\end{center}
+%The file \verb+iclr2018_conference.pdf+ contains these
+%instructions and illustrates the
+%various formatting requirements your ICLR paper must satisfy.
+%Submissions must be made using \LaTeX{} and the style files
+%\verb+iclr2018_conference.sty+ and \verb+iclr2018_conference.bst+ (to be used with \LaTeX{}2e). The file
+%\verb+iclr2018_conference.tex+ may be used as a ``shell'' for writing your paper. All you
+%have to do is replace the author, title, abstract, and text of the paper with
+%your own.
+%
+%The formatting instructions contained in these style files are summarized in
+%sections \ref{gen_inst}, \ref{headings}, and \ref{others} below.
+%
+%\section{General formatting instructions}
+%\label{gen_inst}
+%
+%The text must be confined within a rectangle 5.5~inches (33~picas) wide and
+%9~inches (54~picas) long. The left margin is 1.5~inch (9~picas).
+%Use 10~point type with a vertical spacing of 11~points. Times New Roman is the
+%preferred typeface throughout. Paragraphs are separated by 1/2~line space,
+%with no indentation.
+%
+%Paper title is 17~point, in small caps and left-aligned.
+%All pages should start at 1~inch (6~picas) from the top of the page.
+%
+%Authors' names are
+%set in boldface, and each name is placed above its corresponding
+%address. The lead author's name is to be listed first, and
+%the co-authors' names are set to follow. Authors sharing the
+%same address can be on the same line.
+%
+%Please pay special attention to the instructions in section \ref{others}
+%regarding figures, tables, acknowledgments, and references.
+%
+%\section{Headings: first level}
+%\label{headings}
+%
+%First level headings are in small caps,
+%flush left and in point size 12. One line space before the first level
+%heading and 1/2~line space after the first level heading.
+%
+%\subsection{Headings: second level}
+%
+%Second level headings are in small caps,
+%flush left and in point size 10. One line space before the second level
+%heading and 1/2~line space after the second level heading.
+%
+%\subsubsection{Headings: third level}
+%
+%Third level headings are in small caps,
+%flush left and in point size 10. One line space before the third level
+%heading and 1/2~line space after the third level heading.
+%
+%\section{Citations, figures, tables, references}
+%\label{others}
+%
+%These instructions apply to everyone, regardless of the formatter being used.
+%
+%\subsection{Citations within the text}
+%
+%Citations within the text should be based on the \texttt{natbib} package
+%and include the authors' last names and year (with the ``et~al.'' construct
+%for more than two authors). When the authors or the publication are
+%included in the sentence, the citation should not be in parenthesis (as
+%in ``See \citet{Hinton06} for more information.''). Otherwise, the citation
+%should be in parenthesis (as in ``Deep learning shows promise to make progress towards AI~\citep{Bengio+chapter2007}.'').
+%
+%The corresponding references are to be listed in alphabetical order of
+%authors, in the \textsc{References} section. As to the format of the
+%references themselves, any style is acceptable as long as it is used
+%consistently.
+%
+%\subsection{Footnotes}
+%
+%Indicate footnotes with a number\footnote{Sample of the first footnote} in the
+%text. Place the footnotes at the bottom of the page on which they appear.
+%Precede the footnote with a horizontal rule of 2~inches
+%(12~picas).\footnote{Sample of the second footnote}
+%
+%\subsection{Figures}
+%
+%All artwork must be neat, clean, and legible. Lines should be dark
+%enough for purposes of reproduction; art work should not be
+%hand-drawn. The figure number and caption always appear after the
+%figure. Place one line space before the figure caption, and one line
+%space after the figure. The figure caption is lower case (except for
+%first word and proper nouns); figures are numbered consecutively.
+%
+%Make sure the figure caption does not get separated from the figure.
+%Leave sufficient space to avoid splitting the figure and figure caption.
+%
+%You may use color figures.
+%However, it is best for the
+%figure captions and the paper body to make sense if the paper is printed
+%either in black/white or in color.
+%\begin{figure}[h]
+%\begin{center}
+%%\framebox[4.0in]{$\;$}
+%\fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
+%\end{center}
+%\caption{Sample figure caption.}
+%\end{figure}
+%
+%\subsection{Tables}
+%
+%All tables must be centered, neat, clean and legible. Do not use hand-drawn
+%tables. The table number and title always appear before the table. See
+%Table~\ref{sample-table}.
+%
+%Place one line space before the table title, one line space after the table
+%title, and one line space after the table. The table title must be lower case
+%(except for first word and proper nouns); tables are numbered consecutively.
+%
+%\begin{table}[t]
+%\caption{Sample table title}
+%\label{sample-table}
+%\begin{center}
+%\begin{tabular}{ll}
+%\multicolumn{1}{c}{\bf PART}  &\multicolumn{1}{c}{\bf DESCRIPTION}
+%\\ \hline \\
+%Dendrite         &Input terminal \\
+%Axon             &Output terminal \\
+%Soma             &Cell body (contains cell nucleus) \\
+%\end{tabular}
+%\end{center}
+%\end{table}
+%
+%\section{Final instructions}
+%Do not change any aspects of the formatting parameters in the style files.
+%In particular, do not modify the width or length of the rectangle the text
+%should fit into, and do not change font sizes (except perhaps in the
+%\textsc{References} section; see below). Please note that pages should be
+%numbered.
+%
+%\section{Preparing PostScript or PDF files}
+%
+%Please prepare PostScript or PDF files with paper size ``US Letter'', and
+%not, for example, ``A4''. The -t
+%letter option on dvips will produce US Letter files.
+%
+%Consider directly generating PDF files using \verb+pdflatex+
+%(especially if you are a MiKTeX user).
+%PDF figures must be substituted for EPS figures, however.
+%
+%Otherwise, please generate your PostScript and PDF files with the following commands:
+%\begin{verbatim}
+%dvips mypaper.dvi -t letter -Ppdf -G0 -o mypaper.ps
+%ps2pdf mypaper.ps mypaper.pdf
+%\end{verbatim}
+%
+%\subsection{Margins in LaTeX}
+%
+%Most of the margin problems come from figures positioned by hand using
+%\verb+\special+ or other commands. We suggest using the command
+%\verb+\includegraphics+
+%from the graphicx package. Always specify the figure width as a multiple of
+%the line width as in the example below using .eps graphics
+%\begin{verbatim}
+%   \usepackage[dvips]{graphicx} ...
+%   \includegraphics[width=0.8\linewidth]{myfile.eps}
+%\end{verbatim}
+%or % Apr 2009 addition
+%\begin{verbatim}
+%   \usepackage[pdftex]{graphicx} ...
+%   \includegraphics[width=0.8\linewidth]{myfile.pdf}
+%\end{verbatim}
+%for .pdf graphics.
+%See section~4.4 in the graphics bundle documentation (\url{http://www.ctan.org/tex-archive/macros/latex/required/graphics/grfguide.ps})
+%
+%A number of width problems arise when LaTeX cannot properly hyphenate a
+%line. Please give LaTeX hyphenation hints using the \verb+\-+ command.
+%
+%
+%\subsubsection*{Acknowledgments}
+%
+%Use unnumbered third level headings for the acknowledgments. All
+%acknowledgments, including those to funding agencies, go at the end of the paper.
+%
+%\bibliography{iclr2018_conference}
+%\bibliographystyle{iclr2018_conference}
+%
+%\end{document}

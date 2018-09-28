@@ -1,0 +1,3 @@
+\section{Analytical solution to~\eqref{equ:noisy_min}}
+\label{sec:opt}
+The problem in~\eqref{equ:noisy_min} does not need iterative solver but has an analytical solution. Substituting only the second constraint, the objective becomes $p(x)=x^2D^2 + (1-x)^4/h_{\min}^2C$ with $x=\sqrt{\mu} \in [0, 1)$. By setting the gradient of $p(x)$ to 0, we can get a cubic equation whose root $x=\sqrt{\mu_p}$ can be computed in closed form using Vieta's substitution. As $p(x)$ is uni-modal in $[0, 1)$, the optimizer for \eqref{equ:noisy_min} is exactly the maximum of $\mu_p$ and $(\sqrt{h_{\max}/h_{\min} }-1 )^2 / (\sqrt{h_{\max}/h_{\min}}+1)^2$, the right hand-side of the first constraint in~\eqref{equ:noisy_min}.

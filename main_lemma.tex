@@ -1,0 +1,278 @@
+\newpage
+\onecolumn
+\section{Proof of Lemma~\ref{lem:robustness}}
+\label{sec:proof_robustness}
+To prove Lemma~\ref{lem:robustness}, we first prove a more generalized version in Lemma~\ref{lem:robustness_general}. By restricting $f$ to be a one dimensional quadratics function, the generalized curvature $h_t$ itself is the only eigenvalue. We can prove Lemma~\ref{lem:robustness} as a straight-forward corollary. Lemma~\ref{lem:robustness_general} also implies, in the multiple dimensional correspondence of~\eqref{equ:one_dim_22_rec}, the spectral radius $\rho(\mat{A}_t)=\sqrt{\mu}$ if the curvature on all eigenvector directions (eigenvalue) satisfies~\eqref{eqn:robust_region}.
+
+\begin{lemma}
+\label{lem:robustness_general}
+Let the gradients of a function $f$ be described by
+\begin{equation}
+	\nabla f(\mat{x}_t) = \mat{H}(\mat{x}_t) (\mat{x}_t - \mat{x}^*),
+\end{equation}
+with $\mat{H}(\bm{x}_t) \in \mathbb{R}^n \mapsto \mathbb{R}^{n\times n}$.
+Then the momentum update can be expressed as a linear operator:
+\begin{align}
+{\begin{pmatrix}
+\mat{y}_{t+1}\\
+\mat{y}_t \\
+\end{pmatrix}}
+=
+{\begin{pmatrix}
+\mat{I}-\alpha \mat{H}(\mat{x}_t) + \mu \mat{I} & - \mu \mat{I} \\
+\mat{I} & \mat{0} \\
+\end{pmatrix}}
+{\begin{pmatrix}
+\mat{y}_t \\
+\mat{y}_{t-1} \\
+\end{pmatrix}}
+=\mat{A}_t
+{\begin{pmatrix}
+\mat{y}_t \\
+\mat{y}_{t-1} \\
+\end{pmatrix}},
+\end{align}
+where $\mat{y}_t\triangleq \mat{x}_t - \mat{x}^*$.
+Now, assume that the following condition holds for all eigenvalues $\lambda(\mat{H}(\bm{x}_t))$ of $\mat{H}(\bm{x}_t)$:
+\begin{align}
+{(1-\sqrt{\mu})^2\over \alpha} &\leq \lambda(\mat{H}(\bm{x}_t)) \leq {(1+\sqrt{\mu})^2\over \alpha}.
+\label{equ:control_condition}
+\end{align}
+then the spectral radius of $\mat{A}_t$ is controlled by momentum with
+$	\rho(\mat{A}_t) = \sqrt{\mu}.$
+
+\begin{proof}
+Let $\lambda_t$ be an eigenvalue of matrix $\mat{A}_t$, it gives 
+$\det\left(\mat{A}_t - \lambda_t \mat{I} \right) = 0$. 
+We define the blocks in $\mat{A}_t$ as $\mat{C} = \mat{I} - \alpha \mat{H}_t + \mu \mat{I} - \lambda_t \mat{I}$, $\mat{D} = -\mu \mat{I}$,
+$\mat{E} = \mat{I}$ and $\mat{F} = -\lambda_t \mat{I}$ which gives
+\[
+\det \left( \mat{A}_t - \lambda_t \mat{I}\right) = \det{\mat{F}} \det{\left(\mat{C} - \mat{D} \mat{F}^{-1}
+\mat{E} \right)} = 0
+\]
+assuming generally $\mat{F}$ is invertible. Note we use $\mat{H}_t\triangleq\mat{H}(\mat{x}_t)$ for simplicity in writing. The equation $\det{\left(\mat{C} - \mat{D} \mat{F}^{-1}
+\mat{E} \right)} = 0$ implies that
+\begin{equation}
+\det \left( \lambda_t^2\mat{I} - \lambda_t \mat{M}_t + \mu \mat{I} \right) = 0
+\label{equ:control_condition_2}
+\end{equation}
+with $\mat{M}_t = \left( \mat{I} - \alpha \mat{H}_t + \mu \mat{I} \right)$. In other words, $\lambda_t$ satisfied that $\lambda_t^2 - \lambda_t \lambda(\mat{M}_t) + \mu = 0$ with $\lambda(\mat{M}_t)$ being one eigenvalue of $\mat{M_t}$. I.e.
+\begin{equation}
+	\lambda_t = \frac{\lambda(\mat{M}_t) \pm \sqrt{\lambda(\mat{M}_t)^2 - 4\mu}}{2}
+\end{equation}
+
+On the other hand,~\eqref{equ:control_condition} guarantees that $(1 - \alpha \lambda(\mat{H}_t) + \mu)^2 \leq 4\mu$. We know both $\mat{H}_t$ and $\mat{I} - \alpha \mat{H}_t + \mu \mat{I}$ are symmetric. Thus for all eigenvalues $\lambda(\mat{M}_t)$ of $\mat{M}_t$, we have $\lambda(\mat{M}_t)^2 = (1 - \alpha \lambda(\mat{H}_t) + \mu)^2 \leq 4\mu$ which guarantees $| \lambda_t | = \sqrt{\mu}$ for all $\lambda_t$. As the spectral radius is equal to the magnitude of the largest eigenvalue of $\mat{A}_t$, we have the spectral radius of $\mat{A}_t$ being $\sqrt{\mu}$.
+
+
+\end{proof}
+	
+\end{lemma}
+
+
+\section{Proof of Lemma~\ref{lem:main_lemma}}
+We first prove Lemma~\ref{lem:bias_rec} and Lemma~\ref{lem:var_rec} as preparation for the proof of Lemma~\ref{lem:main_lemma}. After the proof for one dimensional case, we discuss the trivial generalization to multiple dimensional case.
+\begin{lemma}
+\label{lem:bias_rec}
+	Let the $h$ be the curvature of a one dimensional quadratic function $f$ and $\overline{x}_t = \E x_t$. We assume, without loss of generality, the optimum point of $f$ is $x^{\star}=0$. Then we have the following recurrence
+	\begin{equation} 
+		\begin{pmatrix}
+			\overline{x}_{t + 1} \\
+			\overline{x}_t
+		\end{pmatrix} = 
+		\begin{pmatrix}
+			1-\alpha h + \mu & - \mu\\
+			1 & 0 \\
+		\end{pmatrix}^{t}
+		\begin{pmatrix}
+			x_1 \\
+			x_0
+		\end{pmatrix}
+		\label{equ:bias_rec}
+	\end{equation} 
+	\begin{proof}
+		From the recurrence of momentum SGD, % in~\eqref{equ:momentum_sgd}, 
+		we have
+		\begin{equation*}
+			\begin{aligned}
+				\E x_{t + 1} = & \E [ x_{t} - \alpha \nabla f_{S_t} (x_t) + \mu (x_t - x_{t - 1} ) ]\\
+							= & \E_{x_{t}}	[ x_{t} - \alpha \E_{S_t} \nabla f_{S_t} (x_t) + \mu (x_t - x_{t - 1} ) ] \\
+							= & \E_{x_{t}}	[ x_{t} - \alpha h x_t + \mu (x_t - x_{t - 1} ) ] \\
+							= & (1 - \alpha h + \mu)\overline{x}_t - \mu\overline{x}_{t - 1}
+			\end{aligned}
+		\end{equation*}
+		By putting the equation in to matrix form,~\eqref{equ:bias_rec} is a straight-forward result from unrolling the recurrence for $t$ times. Note as we set $x_1 = x_0$ with no uncertainty in momentum SGD, we have $[\overline{x}_0, \overline{x}_1] = [x_0, x_1]$.
+	\end{proof}
+\end{lemma}
+
+\begin{lemma}
+\label{lem:var_rec}
+	Let $U_t=\E ( x_t - \overline{x}_t ) ^2$ and $V_t= \E (x_t - \overline{x}_t)(x_{t-1} - \overline{x}_{t-1})$ with $\overline{x}_t$ being the expectation of $x_t$. For quadratic function $f(x)$ with curvature $h \in \mathbb{R}$, We have the following recurrence
+		\begin{equation} 
+		\begin{pmatrix}
+			U_{t+1} \\
+			U_t \\
+			V_{t + 1}
+		\end{pmatrix} = 
+		(\mat{I} - \mat{B}^{\top})(\mat{I} - \mat{B})^{-1}
+		\begin{pmatrix}
+			\alpha^2 C \\
+			0 \\
+			0
+		\end{pmatrix}
+	\end{equation}
+	where 
+	\begin{equation}
+		\mat{B} = 
+		\begin{pmatrix}
+		(1-\alpha h + \mu)^2 &  \mu^2 & -2\mu(1-\alpha h + \mu)\\
+		1 & 0 & 0 \\
+		1-\alpha h + \mu & 0 & - \mu
+		\end{pmatrix}
+	\end{equation}
+	and $C = \E ( \nabla f_{S_t}(x_t) - \nabla f(x_t) )^2$ is the variance of gradient on minibatch $S_t$.
+	
+	\begin{proof}
+		We prove by first deriving the recurrence for $U_t$ and $V_t$ respectively and combining them in to a matrix form. For $U_t$, we have
+		\begin{equation}
+		\begin{aligned}
+			U_{t + 1} = & \E ( x_{t+1} - \overline{x}_{t + 1} )^2\\
+			 = & \E ( x_{t} - \alpha \nabla f_{S_t}(x_t) + \mu (x_{t} - x_{t - 1} ) - (1 - \alpha h + \mu) \overline{x}_t + \mu \overline{x}_{t - 1} )^2 \\
+			 = & \E ( x_{t} - \alpha \nabla f(x_t) + \mu (x_{t} - x_{t - 1} ) - (1 - \alpha h + \mu) \overline{x}_t + \mu \overline{x}_{t - 1}  + \alpha (\nabla f(x_t) - \nabla f_{S_t}(x_t)) )^2 \\
+			 = & \E ( (1 - \alpha h + \mu) (x_t - \overline{x}_t)  - \mu(x_{t - 1} - \overline{x}_{t - 1} ) )^2 + \alpha^2 \E ( \nabla f(x_t) - \nabla f_{S_t}(x_t) )^2 \\
+			 = & (1 - \alpha h + \mu)^2 \E ( x_t - \overline{x}_t )^2 -2 \mu (1 - \alpha h + \mu) \E (x_t - \overline{x}_t)(x_{t - 1} - \overline{x}_{t - 1} ) \\
+			 & + \mu^2\E ( x_{t-1} - \overline{x}_{t-1} )^2+ \alpha^2 C
+		\end{aligned}
+		\label{equ:U_term}
+		\end{equation}
+		where the cross terms cancels due to the fact $\E_{S_t} [\nabla f(x_t) - \nabla f_{S_t}(x_t)]=0$ in the third equality. 
+		
+		For $V_t$, we can similarly derive
+		\begin{equation}
+		\begin{aligned}			
+			V_t = & \E (x_t - \overline{x}_t) (x_{t-1} - \overline{x}_{t-1} ) \\
+			= & \E ( (1 - \alpha h + \mu) (x_{t-1} - \overline{x}_{t-1} ) - \mu (x_{t-2} - \overline{x}_{t-2}) + \alpha (\nabla f(x_t) - \nabla f_{S_t}(x_t) ) ) (x_{t-1} - \overline{x}_{t-1} ) \\
+			= & (1 - \alpha h + \mu)\E ( x_{t-1} - \overline{x}_{t-1} )^2 - \mu \E (x_{t-1} - \overline{x}_{t-1})(x_{t-2} - \overline{x}_{t-2})
+		\end{aligned}
+		\label{equ:V_term}
+		\end{equation}
+		Again, the term involving $\nabla f(x_t) - \nabla f_{S_t}(x_t)$ cancels in the third equality as a results of $\E_{S_t} [\nabla f(x_t) - \nabla f_{S_t}(x_t)]=0$.~\eqref{equ:U_term} and~\eqref{equ:V_term} can be jointly expressed in the following matrix form
+		\begin{equation}
+		\begin{aligned}
+			\begin{pmatrix}
+			U_{t+1} \\
+			U_t \\
+			V_{t + 1}
+		\end{pmatrix}= \mat{B} 
+		\begin{pmatrix}
+			U_t \\
+			U_{t-1} \\
+			V_t
+		\end{pmatrix} + 
+		\begin{pmatrix}
+			\alpha^2 C \\
+			0 \\
+			0
+		\end{pmatrix}
+		=\sum\limits_{i = 0}^{t-1} \mat{B}^{i} \begin{pmatrix}
+			\alpha^2 C \\
+			0 \\
+			0
+		\end{pmatrix} + \mat{B}^t \begin{pmatrix}
+			U_1 \\
+			U_0 \\
+			V_1
+		\end{pmatrix}
+		= (\mat{I} - \mat{B}^t)(\mat{I} - \mat{B})^{-1}
+		\begin{pmatrix}
+			\alpha^2 C \\
+			0 \\
+			0
+		\end{pmatrix}.
+		\end{aligned}
+		\end{equation}
+		Note the second term in the second equality is zero because $x_0$ and $x_1$ are deterministic. Thus $U_1\!=\!U_0\!=\!V_1\!=\!0$.
+	\end{proof}
+\end{lemma}
+
+According to Lemma~\ref{lem:bias_rec} and~\ref{lem:var_rec}, we have $\E ( \overline{x}_t - x^{*} )^2 = (\mat{e}^{\top}_1 \mat{A}^t [x_1, x_0]^{\top})^2$ and $\E ( x_t - \overline{x}_t )^2=\alpha^2 C \mat{e}^{\top}_1 (\mat{I} - \mat{B}^t)(\mat{I} - \mat{B})^{-1}\mat{e}_1$ where $\mat{e}_1 \in \mathbb{R}^n$ has all zero entries but the first dimension. Combining these two terms, we prove Lemma~\ref{lem:main_lemma}. Though the proof here is for one dimensional quadratics, it trivially generalizes to multiple dimensional quadratics. Specifically, we can decompose the quadratics along the eigenvector directions, and then apply Lemma~\ref{lem:main_lemma} to each eigenvector direction using the corresponding curvature $h$ (eigenvalue). By summing quantities in~\eqref{equ:squared_dist_exact} for all eigenvector directions, we can achieve the multiple dimensional correspondence of~\eqref{equ:squared_dist_exact}.
+
+
+
+
+\section{Proof of Lemma~\ref{lem:spectral_var_control}}
+Again we first present a proof of a multiple dimensional generalized version of Lemma~\ref{lem:spectral_var_control}. The proof of Lemma~\ref{lem:spectral_var_control} is a one dimensional special case of Lemma~\ref{lem:spectral_var_control_multi}. Lemma~\ref{lem:spectral_var_control_multi} also implies that for multiple dimension quadratics, the corresponding spectral radius $\rho(\mat{B})=\mu$ if ${(1-\sqrt{\mu})^2\over \alpha} \leq h \leq {(1+\sqrt{\mu})^2\over \alpha}$ on all the eigenvector directions with $h$ being the eigenvalue (curvature).
+\begin{lemma}
+\label{lem:spectral_var_control_multi}
+Let $\mat{H}\in\mathbb{R}^{n\times n}$ be a symmetric matrix and $\rho(\mat{B})$ be the spectral radius of matrix 
+\begin{equation}
+	%\rho_V(\alpha, \mu) = \rho \left(
+\mat{B} = {\begin{pmatrix}
+(\mat{I}-\alpha \mat{H} + \mu \mat{I})^{\top}(\mat{I}-\alpha \mat{H} + \mu \mat{I}) &  \mu^2 \mat{I} & -2\mu(\mat{I}-\alpha \mat{H} + \mu \mat{I})\\
+\mat{I} & \mat{0} & \mat{0} \\
+\mat{I}-\alpha \mat{H} + \mu \mat{I} & \mat{0} & - \mu \mat{I} 
+\end{pmatrix}}
+	%\right)
+\end{equation}
+We have $\rho(\mat{B})=\mu$ if all eigenvalues $\lambda(\mat{H})$ of $\mat{H}$ satisfies
+\begin{equation}
+{(1-\sqrt{\mu})^2\over \alpha} \leq \lambda(\mat{H}) \leq {(1+\sqrt{\mu})^2\over \alpha}.
+\label{equ:control_condition_var}
+\end{equation}
+
+\begin{proof}
+	Let $\lambda$ be an eigenvalue of matrix $\mat{B}$, it gives 
+$\det\left(\mat{B} - \lambda \mat{I} \right) = 0$ which can be alternatively expressed as
+\begin{equation}	
+\det \left( \mat{B} - \lambda \mat{I}\right) = \det{\mat{F}} \det{\left(\mat{C} - \mat{D} \mat{F}^{-1}
+\mat{E} \right)} = 0
+\label{equ:control_condition_var_1}
+\end{equation}
+assuming $\mat{F}$ is invertible, i.e. $\lambda + \mu \neq 0$, where the blocks in $\mat{B}$ 
+\begin{equation*}
+		\mat{C} = \left( { \begin{array}{c c}
+ 			\mat{M}^{\top}\mat{M} - \lambda \mat{I} &  \mu^2 \mat{I} \\
+ 			\mat{I} & - \lambda \mat{I}
+ 		\end{array} } \right), 
+ 		\mat{D} = \left( { \begin{array}{c}
+ 			-2\mu \mat{M} \\
+ 			\mat{0}
+ 		\end{array}}\right),
+ 		\mat{E} = \left( {\begin{array}{c}
+ 			\mat{M} \\
+ 			\mat{0}
+ 		\end{array}} \right)^{\top},
+ 		\mat{F} = -\mu \mat{I} - \lambda \mat{I}
+	\end{equation*}
+	with $\mat{M}=\mat{I}-\alpha \mat{H} + \mu \mat{I}$.~\eqref{equ:control_condition_var_1} can be transformed using straight-forward algebra as
+	\begin{equation}
+		\det \left( \begin{array}{c c}
+ 			(\lambda - \mu) \mat{M}^{\top}\mat{M} - (\lambda + \mu) \lambda \mat{I} & (\lambda + \mu)\mu^2 \mat{I} \\
+ 			(\lambda + \mu) \mat{I} & -(\lambda + \mu)\lambda \mat{I}
+ 		\end{array} \right) = 0
+		\label{equ:control_condition_var_2}	
+	\end{equation}
+	Using similar simplification technique as in~\eqref{equ:control_condition_var_1}, we can further simplify into
+	\begin{equation}
+		(\lambda - \mu)\det \left( (\lambda + \mu)^2 \mat{I} - \lambda \mat{M}^{\top}\mat{M} \right) = 0
+	\end{equation}
+	if $\lambda \neq \mu$, as $(\lambda + \mu)^2 \mat{I} - \lambda \mat{M}^{\top}\mat{M}$ is diagonalizable, we have $(\lambda + \mu)^2 - \lambda \lambda(\mat{M})^2 = 0$ with $\lambda(\mat{M})$ being an eigenvalue of symmetric $\mat{M}$. The analytic solution to the equation can be explicitly expressed as
+	\begin{equation}
+		\lambda = \frac{\lambda(\mat{M})^2 - 2\mu \pm \sqrt{(\lambda(\mat{M})^2 - 2\mu)^2 - 4\mu^2}}{2}.
+		\label{equ:control_condition_var_3}	
+	\end{equation}
+	
+	When the condition in~\eqref{equ:control_condition_var} holds, we have $\lambda(M)^2=(1 - \alpha \lambda(\mat{H}) + \mu)^2 \leq 4\mu$. One can verify that 
+	
+	\begin{equation}
+		\begin{aligned}
+			(\lambda(\mat{M})^2 - 2\mu)^2 - 4\mu^2 & = && (\lambda(\mat{M})^2 - 4\mu)\lambda(\mat{M})^2 \\
+			& = &&\left( (1 - \alpha \rho(\mat{H} ) + \mu)^2 - 4\mu\right)\lambda(\mat{M})^2 \\
+			& \leq && 0
+		\end{aligned}
+	\end{equation}
+	Thus the roots in~\eqref{equ:control_condition_var_3} are conjugate with $| \lambda | = \mu$. In conclusion, the condition in~\eqref{equ:control_condition_var} can guarantee all the eigenvalues of $\mat{B}$ has magnitude $\mu$. Thus the spectral radius of $\mat{B}$ is controlled by $\mu$.
+\end{proof}
+
+\end{lemma}
+
+

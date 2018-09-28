@@ -1,0 +1,333 @@
+\vspace{-0.2em}
+\section{The \tuner tuner}
+\label{sec:sync_tuner}
+\vspace{-0.2em}
+%In this section we describe \tuner, our tuner for momentum SGD.
+%We introduce a noisy quadratic model and work on a local quadratic approximation of $f(x)$ to apply the tuning rule of \eqref{eqn:noiseless_tuning_rule} to SGD on an arbitrary objective.
+%\tuner is our implementation of that rule.
+
+Here we describe our tuner for momentum SGD that uses the same learning rate for all variables.
+We first introduce a noisy quadratic model $f(x)$ as the local approximation of an arbitrary one-dimensional objective. On this approximation, we extend the tuning rule of \eqref{eqn:noiseless_tuning_rule} to SGD. In section~\ref{sec:tuner}, \emph{we generalize the discussion to multidimensional objectives; it yields the \tuner tuning rule}.
+
+
+\paragraph{Noisy quadratic model}
+\label{sec:noisy_quadratics}
+
+\newcommand{\oac}{origin-adjusted curvature }
+\newcommand{\bx}{\bar{x}}
+
+
+We consider a scalar quadratic 
+\begin{equation}
+	f(x) = \frac{h}{2} x^2 + C 
+	= \sum_i \frac{h}{2n}(x-c_i)^2
+	\triangleq \frac{1}{n} \sum_i f_i(x)
+%	\quad \sum_i c_i = 0.
+	\label{eqn:noise_quad_1d}
+\end{equation}
+with $\sum_i c_i = 0$. $f(x)$ is a quadratic approximation of the original objectives with $h$ and $C$ derived from measurement on the original objective. The function $f(x)$ is defined as the average of $n$ {\em component functions}, $f_i$.
+This is a common model for SGD, where we use only a single data point (or a mini-batch) drawn uniformly at random, $S_t \sim \mathrm{Uni}([n])$ to compute a noisy gradient, $\nabla f_{S_t}(x)$, for step $t$.
+Here, $C=\frac{1}{2n}\sum_i h c_i^2$ denotes the {\em gradient variance}.
+As optimization on quadratics decomposes into scalar problems along the principal eigenvectors of the Hessian, the scalar model in~\eqref{eqn:noise_quad_1d} is sufficient to study local quadratic approximations of multidimensional objectives.
+Next we get an {\em exact} expression for the mean square error after running momentum SGD on the scalar quadratic in~\eqref{eqn:noise_quad_1d} for $t$ steps.
+
+
+
+\begin{lemma}
+\label{lem:main_lemma}
+Let $f(x)$ be defined as in \eqref{eqn:noise_quad_1d},
+$x_1=x_0$ and $x_t$ follow the momentum update \eqref{eqn:momentum_gd} with stochastic gradients $\nabla f_{S_t}(x_{t-1})$ for $t \geq 2$.
+Let $\mat{e}_1=[1, 0]^T$, the expectation of squared distance to the optimum $x^*$ is
+	\begin{equation}
+	\begin{aligned}
+		\E (x_{t+1} - x^{*})^2 & = (\mat{e}^{\top}_1 \mat{A}^t [x_1 - x^{*}, x_0-x^{*}]^{\top})^2 \\
+		& + \alpha^2 C \mat{e}^{\top}_1 (\mat{I} - \mat{B}^t)(\mat{I} - \mat{B})^{-1}\mat{e}_1	,
+		\label{equ:squared_dist_exact}	
+	\end{aligned}
+	\end{equation}
+where the first and second term correspond to squared bias 
+and variance, and their corresponding momentum dynamics are captured by operators
+	\begin{equation}
+	\begin{gathered}
+		\mat{A} = \begin{bmatrix}
+		1-\alpha h + \mu & - \mu\\
+		1 & 0 \\
+		\end{bmatrix}, \\
+%		\quad
+		\mat{B} = 
+		\begin{bmatrix}
+		(1-\alpha h + \mu)^2 &  \mu^2 & -2\mu(1-\alpha h + \mu)\\
+		1 & 0 & 0 \\
+		1-\alpha h + \mu & 0 & - \mu
+		\end{bmatrix}.
+		\label{equ:mat_def}
+	\end{gathered}
+	\end{equation}
+\end{lemma}
+
+\yell{
+Even though it is possible to numerically work on~\eqref{equ:squared_dist_exact} directly,
+we use a scalar, asymptotic surrogate in~\eqref{eqn:asymptotic_surrogate} based on the spectral radii of operators to simplify analysis and expose insights.
+This decision is supported by our findings in Section~\ref{sec:momentum_operator}: the spectral radii can capture empirical convergence rate.}
+\begin{equation}
+\begin{aligned}
+%	\E ( x_{t+1} - x^{*} )^2
+%	\approx  \rho(\mat{A})^{2t} ( x_0 - x_{*} )^2 
+%		+ (1-\rho(\mat{B})^{t}) \frac{\alpha^2 C}{1-\rho(\mat{B})}
+	&\E ( x_{t+1} - x^{*} )^2 \\
+	\approx & \rho(\mat{A})^{2t} ( x_0 - x_{*} )^2 
+		+ (1-\rho(\mat{B})^{t}) \frac{\alpha^2 C}{1-\rho(\mat{B})}
+	\label{eqn:asymptotic_surrogate}
+\end{aligned}
+\end{equation}
+
+One of our design decisions for \tuner 
+is to always work in the robust region of Lemma~\ref{lem:robustness}.
+We know that this implies a spectral radius $\sqrt{\mu}$ of the momentum operator, $\mat{A}$, for the bias. 
+Lemma~\ref{lem:spectral_var_control} shows that under the exact same condition, the variance operator $\mat{B}$ has spectral radius $\mu$.
+ 
+
+\begin{lemma}
+\label{lem:spectral_var_control}
+The spectral radius of the variance operator, $\mat{B}$ is $\mu$, if ${(1-\sqrt{\mu})^2} \leq  \alpha h \leq {(1+\sqrt{\mu})^2}$.
+\end{lemma}
+
+As a result, the surrogate objective of \eqref{eqn:asymptotic_surrogate}, takes the following form in the robust region.  
+\begin{equation}
+	\E ( x_{t+1} - x^{*} )^2 
+	\approx \mu^t ( x_0 - x^{*} )^2
+		+ (1-\mu^t) \frac{\alpha^2 C}{1-\mu}
+	\label{eqn:noisy_square_dist}
+\end{equation}
+We extend this surrogate to multidimensional cases to extract a noisy tuning rule for \tuner.
+
+%\vspace{-0.25em}
+\subsection{Tuning rule}
+\label{sec:tuner}
+\vspace{-0.25em}
+
+In this section, we present \textsc{SingleStep}, the tuning rule of YellowFin (Algorithm~\ref{alg:basic-algo}). Based on the surrogate in~\eqref{eqn:noisy_square_dist}, \textsc{SingleStep} is a multidimensional SGD version of the noiseless tuning rule in~\eqref{eqn:noiseless_tuning_rule}. We first generalize~\eqref{eqn:noiseless_tuning_rule} and~\eqref{eqn:noisy_square_dist} to multidimensional cases, and then discuss \textsc{SingleStep}.% in details.
+
+As discussed in Section~\ref{sec:robust_properties}, GCN $\nu$ captures the dynamic range of generalized curvatures in a one-dimensional objective with varying curvature. The consequent robust region described by~\eqref{eqn:noiseless_tuning_rule} implies homogeneous spectral radii. 
+%\emph{In multidimensional cases, we use a single learning rate and momentum for the entire model.} 
+On a multidimensional non-convex objective, each one-dimensional slice passing a minimum $x^*$ can have \emph{varying curvature}. As we use \emph{a single $\mu$ and $\alpha$ for the entire model}, if $\nu$ simultaneously captures the dynamic range of generalized curvature over all these slices, $\mu$ and $\alpha$ in~\eqref{eqn:noiseless_tuning_rule} are in the robust region for all these slices. This implies homogeneous spectral radii $\sqrt{\mu}$ according to Lemma~\ref{lem:robustness}, empirically facilitating convergence at a common rate along all the directions. 
+
+Given homogeneous spectral radii $\sqrt{\mu}$ along all directions, the surrogate in~\eqref{eqn:noisy_square_dist} generalizes on the local quadratic approximation of multiple dimensional objectives. On this approximation with minimum $x^*$, the expectation of squared distance to $x^*$, $\E \| x_0 - x^*\|^2$, decomposes into independent scalar components along the eigenvectors of the Hessian. We define gradient variance $C$ as the sum of gradient variance along these eigenvectors. The one-dimensional surrogates in~\eqref{eqn:noisy_square_dist} for the independent components sum to $\mu^t\| x_0 - x^* \|^2 + (1-\mu^t)\alpha^2 C / (1 - \mu)$, the \emph{multidimensional surrogate} corresponding to the one in~\eqref{eqn:noisy_square_dist}. 
+%Given homogeneous spectral radii $\sqrt{\mu}$ along all directions, the surrogate in~\eqref{eqn:noisy_square_dist} generalizes via multidimensional local quadratic approximations. Assuming the quadratic approximation aligns with standard axes, the expectation of squared distance to the optimum of the approximation, $\E\|x_t - x^*\|^2$, decomposes along the standard axes. As the initial squared distance $\| x_0 - x^*\|^2$ and gradient variance $C$ also decompose along the axes, the one dimensional surrogates along axes sums to $\mu^t\| x_0 - x^* \|^2 + (1-\mu^t)\alpha^2 C / (1 - \mu)$, the surrogates corresponding to the one in~\eqref{eqn:noisy_square_dist}. 
+%	Note for quadratic approximation not aligned with the axes, this \emph{multidimensional surrogates} is attained by decomposing along eigenvectors of the quadratic approximation's Hessian, instead of standard axes. 
+
+%%\begin{minipage}{0.5\linewidth}
+%%\vspace{-0.25em}
+%\begin{equation}
+%\begin{aligned}
+%	\textsc{(SingleStep)} \notag \\
+%	 \mu_t, \alpha_t & = && \arg \min_{\mu} \mu D^2
+%		+ \alpha^2 C \\
+%	s.t. & &&\mu \geq \left(\frac{\sqrt{h_{\max}/h_{\min} }-1}{\sqrt{h_{\max}/h_{\min}}+1}\right)^2 \\
+%	& &&\alpha = \frac{(1-\sqrt{\mu})^2}{h_{\min}}
+%\end{aligned}
+%\label{equ:noisy_min}
+%\end{equation}
+%%\end{minipage}
+%\begin{minipage}{0.025\linewidth}
+%\ 
+%\end{minipage}
+%\begin{minipage}{0.45\linewidth}
+%\vspace{-1.5em}
+%\begin{algorithm}[H]
+%	\footnotesize
+%	\caption{\jianedits{\tuner}}
+%	\begin{algorithmic}
+%	\State \textbf{state: } $\alpha \gets 1.0$, $\mu \gets 0.0$%, $w\gets20$
+%	\Function{\tuner}{$\text{gradient } g_t$, $\beta$}
+%	\State $h_{\max}, h_{\min} \gets \Call{CurvatureRange}{g_t, \beta}$
+%	\State $C \gets \Call{Variance}{g_t, \beta}$ 
+%	\State $D \gets \Call{Distance}{g_t, \beta}$ 
+%
+%	\State $\mu_t, \alpha_t \gets \Call{SingleStep}{C, D, h_{\max}, h_{\min}}$
+%	\State $\mu \gets \beta \cdot \mu + (1 - \beta) \cdot \mu_t$
+%	\State $\alpha \gets \beta \cdot \alpha + (1 - \beta) \cdot \alpha_t$ %\Comment{Smoothing learning rate and momentum for stable control}
+%	\Return $\mu, \alpha$
+%	\EndFunction
+%	\end{algorithmic}
+%	\label{alg:basic-algo}
+%\end{algorithm}
+%\end{minipage}
+%%%%%%%%%%%%%%%%%%%%%%%%% new algorithm %%%%%%%%%%%%%%%%%%%%%%%%
+%%\begin{minipage}{0.475\linewidth}
+%%\vspace{-0.25em}
+%\begin{algorithm}[H]
+%	\footnotesize
+%	\caption{\jianedits{\tuner}}
+%	\begin{algorithmic}
+%%	\State \textbf{state: } $\alpha \gets 1.0$, $\mu \gets 0.0$%, $w\gets20$
+%	\Function{\tuner}{$\text{gradient } g_t$, $\beta$}
+%	\State $h_{\max}, h_{\min} \gets \Call{CurvatureRange}{g_t, \beta}$
+%	\State $C \gets \Call{Variance}{g_t, \beta}$ 
+%	\State $D \gets \Call{Distance}{g_t, \beta}$ 
+%
+%	\State $\mu_t, \alpha_t \gets \Call{SingleStep}{C, D, h_{\max}, h_{\min}}$
+%%	\State $\mu_t, \alpha_t \gets \Call{SingleStep}{C, D, h_{\max}, h_{\min}}$
+%%	\State $\mu \gets \beta \cdot \mu + (1 - \beta) \cdot \mu_t$
+%%	\State $\alpha \gets \beta \cdot \alpha + (1 - \beta) \cdot \alpha_t$ %\Comment{Smoothing learning rate and momentum for stable control}
+%	\Return $\mu_t, \alpha_t$
+%	\EndFunction
+%	\end{algorithmic}
+%	\label{alg:basic-algo}
+%\end{algorithm}
+%%\end{minipage}
+%\begin{minipage}{0.475\linewidth}
+%\vspace{-0.25em}
+\vspace{-0.25em}
+\begin{algorithm}[h]
+%	\footnotesize
+	\caption{\jianedits{\tuner}}
+	\begin{algorithmic}
+%	\State \textbf{state: } $\alpha \gets 1.0$, $\mu \gets 0.0$%, $w\gets20$
+	\Function{\tuner}{$\text{gradient } g_t$, $\beta$}
+	\State $h_{\max}, h_{\min} \gets \Call{CurvatureRange}{g_t, \beta}$
+	\State $C \gets \Call{Variance}{g_t, \beta}$ 
+	\State $D \gets \Call{Distance}{g_t, \beta}$ 
+
+	\State $\mu_t, \alpha_t \gets \Call{SingleStep}{C, D, h_{\max}, h_{\min}}$
+%	\State $\mu_t, \alpha_t \gets \Call{SingleStep}{C, D, h_{\max}, h_{\min}}$
+%	\State $\mu \gets \beta \cdot \mu + (1 - \beta) \cdot \mu_t$
+%	\State $\alpha \gets \beta \cdot \alpha + (1 - \beta) \cdot \alpha_t$ %\Comment{Smoothing learning rate and momentum for stable control}
+	\Return $\mu_t, \alpha_t$
+	\EndFunction
+	\end{algorithmic}
+	\label{alg:basic-algo}
+\end{algorithm}
+\vspace{-0.25em}
+%\end{minipage}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%% new algorithm %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{table*}[t]
+\begin{minipage}{0.37\textwidth}
+\vspace{-1em}
+\algrenewcommand\alglinenumber[1]{\scriptsize #1:}
+	\begin{algorithm}[H]
+	\small
+	\setstretch{1.01}
+	\caption{\small Curvature range}
+	\begin{algorithmic}
+		\State \textbf{state: } $h_{\max}$, $h_{\min}$, $h_i, \forall i \in\{1,2,3,...\}$
+		\Function{CurvatureRange}{gradient $g_t$, $\beta$}
+			\State $h_t \gets \| g_t \|^2$
+			\State $h_{\max,t}\gets\!\!\!\max\limits_{t - w \leq i \leq t}\!h_i$, $h_{\min,t}\gets\!\!\!\min\limits_{t - w \leq i \leq t}\!h_i$
+			\State $h_{\max} \gets \beta \cdot h_{\max} + (1 - \beta) \cdot h_{\max,t}$ %\hfill Smoothed largest curvature.
+			\State $h_{\min} \gets \beta \cdot h_{\min} + (1 - \beta) \cdot h_{\min,t}$ %\hfill Smoothed smallest curvature.
+%			\State $h_{\max} \gets \beta \  h_{\max} + (1 - \beta) \  h_{\max,t}$ %\hfill Smoothed largest curvature.
+%			\State $h_{\min} \gets \beta \ h_{\min} + (1 - \beta) \ h_{\min,t}$ %\hfill Smoothed smallest curvature.
+			\Return $h_{\max}$, $h_{\min}$
+		\EndFunction
+	\end{algorithmic}
+	\label{alg:curv_func}
+	\end{algorithm}
+\end{minipage}
+\begin{minipage}{0.315\textwidth}
+\vspace{-1em}
+\algrenewcommand\alglinenumber[1]{\scriptsize #1:}
+	\begin{algorithm}[H]
+	\small
+	\setstretch{1.5}
+	\caption{\small Gradient variance}
+	\begin{algorithmic}
+	\State \textbf{state: } $\overline{g^2}\gets0$, $\overline{g}\gets0$
+	\Function{Variance}{gradient $g_t$, $\beta$}
+		\State $\overline{g^2}\gets\beta \cdot \overline{g^2} + (1 - \beta) \cdot g_t \odot g_t$
+		\State $\overline{g}\gets\beta \cdot \overline{g} + (1 - \beta) \cdot g_t$
+%		\Return $\| \overline{g^2} - \overline{g}^2 \|_1$ %\hfill Sum of elements in the vect
+		\Return $\bm{1}^T\!\!\cdot\left(\overline{g^2} - \overline{g}^2\right)$ %\hfill Sum of elements in the vect
+	\EndFunction
+	\end{algorithmic}
+	\label{alg:var_func}
+	\end{algorithm}
+\end{minipage}
+\begin{minipage}{0.3\textwidth}
+\vspace{-1em}
+\algrenewcommand\alglinenumber[1]{\scriptsize #1:}
+	\begin{algorithm}[H]
+	\small
+	\setstretch{1.25}
+	\caption{\small Distance to opt.}
+	\begin{algorithmic}
+	\State \textbf{state: } $\overline{\|g\|}\gets0$, $\overline{h}\gets0$
+		\Function{Distance}{gradient $g_t$, $\beta$}
+		\State $\overline{\|g\|}\gets \beta \cdot \overline{\|g\|} + (1 - \beta) \cdot \|g_t\|$
+		\State $\overline{h} \gets \beta \cdot \overline{h} + (1 - \beta) \cdot \| g_t \|^2$
+		\State $D \gets \beta \cdot D + (1 - \beta) \cdot \overline{\|g\|} /\overline{h}$
+		\Return $D$
+	\EndFunction
+	\end{algorithmic}
+	\label{alg:dist_func}
+	\end{algorithm}
+\end{minipage}
+\end{table*}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%% end of new algorithm
+
+\begin{wrapfigure}[9]{R}{0.55\linewidth}
+\vspace{-2.5em}
+\hspace{-1em}
+\begin{minipage}{\linewidth}
+	\begin{equation}
+	\begin{aligned}
+	&\textsc{(SingleStep)} \\
+	 \mu_t, \alpha_t = & \arg \min_{\mu} \mu D^2
+		+ \alpha^2 C \\
+	s.t.\  \mu \geq & \left(\frac{\sqrt{h_{\max}/h_{\min} }-1}{\sqrt{h_{\max}/h_{\min}}+1}\right)^2 \\
+	\alpha =& \frac{(1-\sqrt{\mu})^2}{h_{\min}}
+	\end{aligned}
+	\label{equ:noisy_min}
+	\end{equation}
+\end{minipage}
+\end{wrapfigure}
+Let $D$ be an estimate of the current model's distance to a local quadratic approximation's minimum, and $C$ denote an estimate for gradient variance.
+\textsc{SingleStep} minimizes the \emph{multidimensional surrogate} after a single step (i.e. $t=1$) while ensuring $\mu$ and $\alpha$ in the robust region for all directions. \emph{A single instance of \textsc{SingleStep} solves a single momentum and learning rate for the entire model at each iteration.}
+Specifically, the extremal curvatures $h_{min}$ and $h_{max}$ denote estimates for the largest and smallest generalized curvature respectively. They are meant to capture both generalized curvature variation along all different directions (like the classic condition number)
+and also variation that occurs as the {\em landscape evolves}. The constraints keep the global learning rate and momentum in the robust region (defined in Lemma~\ref{lem:robustness}) 
+for slices along all directions.
+%along eigenvectors of the quadratic approximation's Hessian. 
+%\textsc{SingleStep} can be solved in closed form; we refer to Appendix~\ref{sec:opt} for relevant details on the closed form solution. 
+
+The problem in~\eqref{equ:noisy_min} does not need iterative solver but has an analytical solution. Substituting only the second constraint, the objective becomes $p(x)=x^2D^2 + (1-x)^4/h_{\min}^2C$ with $x=\sqrt{\mu} \in [0, 1)$. By setting the gradient of $p(x)$ to 0, we can get a cubic equation whose root $x=\sqrt{\mu_p}$ can be computed in closed form using Vieta's substitution. As $p(x)$ is uni-modal in $[0, 1)$, the optimizer for \eqref{equ:noisy_min} is exactly the maximum of $\mu_p$ and $(\sqrt{h_{\max}/h_{\min} }-1 )^2 / (\sqrt{h_{\max}/h_{\min}}+1)^2$, the right hand-side of the first constraint in~\eqref{equ:noisy_min}.
+
+\tuner uses functions \textproc{CurvatureRange}, \textproc{Variance} and \textproc{Distance} to measure quantities $h_{\max}$, $h_{\min}$, $C$ and $D$ respectively. These measurement functions can be designed in different ways.
+We present the implementations we used for our experiments,
+based completely on gradients,  in Section~\ref{sec:oracles}.
+
+
+
+%Let $D$ denote an estimate of the current model's distance to a local quadratic approximation's minimum, and $C$ denote an estimate for gradient variance. The extremal curvatures $h_{min}$ and $h_{max}$ denote estimates for the largest and smallest generalized curvature respectively. They are meant to capture both local curvature variation along all different directions (like the classic condition number)
+%and also variation that occurs as the {\em landscape evolves}. Thus the constraints keep the global learning rate and momentum in the robust region (defined in Lemma~\ref{lem:robustness}) along all eigendirections of the quadratic approximation. According to Lemma~\ref{lem:robustness} and~\ref{lem:spectral_var_control}, these constraints support the decomposition of \textsc{SingleStep} objective, as the sum of ~\eqref{eqn:noisy_square_dist} (with $t=1$) along the eigendirections of the quadratic approximation.
+%\textsc{SingleStep} can be solved in closed form; we refer to Appendix~\ref{sec:opt} for discussion on the closed form solution. 
+%\tuner uses functions \textproc{CurvatureRange}, \textproc{Variance} and \textproc{Distance} to measure quantities $h_{\max}$, $h_{\min}$, $C$ and $D$ respectively. These measurement functions can be designed in different ways.
+%We present the implementations we used for our experiments,
+%based completely on gradients,  in Section~\ref{sec:oracles}.
+
+%\textsc{SingleStep} minimizes the surrogate for the expected squared distance from the optimum of a local quadratic approximation  \eqref{eqn:noisy_square_dist} after a single step ($t=1$),
+%while keeping all directions in the robust region \eqref{eqn:robust_region}.
+%This is the SGD version of the noiseless tuning rule in \eqref{eqn:noiseless_tuning_rule}.
+%It can be solved in closed form; we refer to Appendix~\ref{sec:opt} for discussion on the closed form solution. 
+%\tuner uses functions \textproc{CurvatureRange}, \textproc{Variance} and \textproc{Distance} to measure quantities $h_{\max}$, $h_{\min}$, $C$ and $D$ respectively. These measurement functions can be designed in different ways.
+%We present the implementations we used for our experiments,
+%based completely on gradients,  in Section~\ref{sec:oracles}.
+
+
+
+
+\input{oracles}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
