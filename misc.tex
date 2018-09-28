@@ -1,0 +1,341 @@
+\section{Misc}
+
+
+\begin{lemma}
+	Let the $h$ be the curvature of quadratic function $f$. With $\overline{x}_t$ being the expectation of $x_t$, we assume, without loss of generality, the optimum point of the quadratic $f$ is 0. Then we have the following recurrence
+	\begin{equation} 
+		\begin{pmatrix}
+			\overline{x}_{t + 1} \\
+			\overline{x}_t
+		\end{pmatrix} = 
+		\begin{pmatrix}
+			1-\alpha h + \mu & - \mu\\
+			1 & 0 \\
+		\end{pmatrix}
+		\begin{pmatrix}
+			\overline{x}_1 \\
+			\overline{x}_0
+		\end{pmatrix}
+	\end{equation} 
+\end{lemma}
+
+\begin{lemma}
+	We define $U_t=\E \| x_t - \overline{x}_t \|^2$ and $V_t= \E (x_t - \overline{x}_t) (x_{t-1} - \overline{x}_{t-1})$ with $\overline{x}_t$ being the expectation of $x_t$. For quadratic function $f(x)$ with curvature $h \in \mathbb{R}$, We have the following recurrence
+	\begin{equation} 
+		\begin{pmatrix}
+			U_{t+1} \\
+			U_t \\
+			V_{t + 1}
+		\end{pmatrix} = 
+		(\mat{I} - \mat{S}^T)(\mat{I} - \mat{S})^{-1}
+		\begin{pmatrix}
+			\alpha^2 \\
+			0 \\
+			0
+		\end{pmatrix}
+	\end{equation}
+	where 
+	\begin{equation}
+		\mat{S} = 
+		\begin{pmatrix}
+		(1-\alpha h + \mu)^2 &  \mu^2 & -2\mu(1-\alpha h + \mu)\\
+		1 & 0 & 0 \\
+		1-\alpha h + \mu & 0 & - \mu
+		\end{pmatrix}
+	\end{equation}
+\end{lemma}
+
+
+\begin{lemma}
+\label{lem:2times2_spectral_radius}
+	Let $\rho(\mat{T})$ be the spectral radius of matrix  
+\begin{equation}
+	\mat{T} = \begin{pmatrix}
+	1-\alpha h + \mu & - \mu\\
+	1 & 0 \\
+	\end{pmatrix}
+\end{equation}
+where $h\in \mathbb{R}$. $\rho(\mat{T}) = \sqrt{\mu}$ if the following condition holds
+\begin{align}
+{(1-\sqrt{\mu})^2\over \alpha} &\leq h \leq {(1+\sqrt{\mu})^2\over \alpha}.
+\label{equ:control_condition_scalar}
+\end{align}
+\end{lemma}
+
+\begin{lemma}
+\label{lem:3times3_spectral_radius}
+Let $\rho(\mat{S})$ be the spectral radius of matrix 
+\begin{equation}
+	%\rho_V(\alpha, \mu) = \rho \left(
+\mat{S} = {\begin{pmatrix}
+(1-\alpha h + \mu)^2 &  \mu^2 & -2\mu(1-\alpha h + \mu)\\
+1 & 0 & 0 \\
+1-\alpha h + \mu & 0 & - \mu
+\end{pmatrix}}
+	%\right)
+\end{equation}
+where $h\in \mathbb{R}$.
+$\rho(\mat{S})=\mu$ if the following condition holds for
+\begin{equation}
+{(1-\sqrt{\mu})^2\over \alpha} \leq h \leq {(1+\sqrt{\mu})^2\over \alpha}
+\label{equ:control_condition_var}
+\end{equation}
+\end{lemma}
+
+
+
+\begin{corollary}
+\label{cor:}
+Under the conditions in Eqaution~\eqref{equ:control_condition_var}, we get
+\begin{equation}
+	\E \| x_T \|^2 
+	= \mu^T \| x_0 \|^2
+		+ (1-\mu^T) \frac{\alpha^2 C}{1-\mu}
+	\label{equ:noisy_square_dist}
+\end{equation}
+\label{cor:noisy_dist}
+\end{corollary}
+
+Now, if we know, or can approximately estimate some of these quantities we can tune the learning rate and momentum hyperparameters to minimize  \eqref{equ:noisy_square_dist}.
+
+
+
+
+
+\section{Proof of Lemma~\ref{}}
+The generalization of scalar analysis to multiple dimensional case.
+\begin{lemma}
+\label{lem:robustness}
+Let the gradients of a function $f$ be described by
+\begin{equation}
+	\nabla f(\mat{x}_t) = \mat{H}_t (\mat{x}_t - \mat{x}^*),
+\end{equation}
+for $\mat{H}_t \in \mathbb{R}^{n\times n}$.
+The the momentum update can be expressed as a linear operator:
+\begin{align}
+{\begin{pmatrix}
+\mat{y}_{t+1}\\
+\mat{y}_t \\
+\end{pmatrix}}
+=
+{\begin{pmatrix}
+\mat{I}-\alpha \mat{H}_t + \mu \mat{I} & - \mu \mat{I} \\
+\mat{I} & \mat{0} \\
+\end{pmatrix}}
+{\begin{pmatrix}
+\mat{y}_t \\
+\mat{y}_{t-1} \\
+\end{pmatrix}}
+=\mat{T}_t
+{\begin{pmatrix}
+\mat{y}_t \\
+\mat{y}_{t-1} \\
+\end{pmatrix}},
+\end{align}
+where $\mat{y}_t\triangleq \mat{x}_t - \mat{x}^*$.
+Now, assume that the following condition holds for all eigenvalue $\rho(\mat{H}_t)$ of $\mat{H}_t$ for all $t$:
+\begin{align}
+{(1-\sqrt{\mu})^2\over \alpha} &\leq \rho(\mat{H}_t ) \leq {(1+\sqrt{\mu})^2\over \alpha}.
+\label{equ:control_condition}
+\end{align}
+then the spectral radius of $\mat{T}_t$ is controlled by momentum with
+$	\rho(\mat{T}_t) = \sqrt{\mu}.$
+
+\begin{proof}
+Let $\lambda_t$ be an eigenvalue of matrix $\mat{T}_t$, it gives 
+$\det\left(\mat{T}_t - \lambda_t \mat{I} \right) = 0$. 
+We define $\mat{A}_t = \mat{I} - \alpha \mat{H}_t + \mu \mat{I} - \lambda_t \mat{I}$, $\mat{B}_t = -\mu \mat{I}$,
+$\mat{C}_t = \mat{I}$ and $\mat{D}_t = -\lambda_t \mat{I}$ which gives
+\[
+\det \left( \mat{T}_t - \lambda_t \mat{I}\right) = \det{\mat{D}_t} \det{\left(\mat{A}_t - \mat{B}_t \mat{D}_t^{-1}
+\mat{C}_t \right)} = 0
+\]
+assuming generally $\mat{D}_t$ is invertable. The equation $\det{\left(\mat{A}_t - \mat{B}_t \mat{D}_t^{-1}
+\mat{C}_t \right)} = 0$ implies that
+\begin{equation}
+\det \left( \lambda_t^2\mat{I} - \lambda_t \mat{M}_t + \mu \mat{I} \right) = 0
+\label{equ:control_condition_2}
+\end{equation}
+with $\mat{M}_t = \left( \mat{I} - \alpha \mat{H}_t + \mu \mat{I} \right)$. In other words, $\lambda_t$ satisfied that $\lambda_t^2 - \lambda_t \rho(\mat{M}_t) + \mu = 0$ with $\rho(\mat{M}_t)$ being one eigenvalue of $\mat{M_t}$. I.e.
+\begin{equation}
+	\lambda_t = \frac{\rho(\mat{M}_t) \pm \sqrt{\rho(\mat{M}_t)^2 - 4\mu}}{2}
+\end{equation}
+
+On the other hand, Equation~\eqref{equ:control_condition} guarantees that $(1 - \alpha \rho(\mat{H}_t) + \mu)^2 \leq 4\mu$. We know both $\mat{H}_t$ and $\mat{I} - \alpha \mat{H}_t + \mu \mat{I}$ are symmetric. Thus for all eigenvalues $\rho(\mat{M}_t)$ of $\mat{H}$, we have $\rho(\mat{M}_t) = (1 - \alpha \rho(\mat{H}_t) + \mu)^2 \leq 4\mu$ which guarantees $| \lambda_t | \leq \sqrt{\mu}$ for all $\lambda_t$ and all $t$. As the spectral radius is equal to the absolute value of the largest eigenvalue of $\mat{T}_t$, we have the spectral radius of $\mat{T}_t$ is $\sqrt{\mu}$ for all $t$.
+
+
+\end{proof}
+	
+\end{lemma}
+
+
+\begin{corollary}
+	Let the gradients of a function $f$ be described by
+\begin{equation}
+	\nabla f(x_t) = h_t (x_t - x^*),
+\end{equation}
+for $h_t \in \mathbb{R}$.
+The the momentum update can be expressed as a linear operator:
+\begin{align}
+{\begin{pmatrix}
+y_{t+1}\\
+y_t \\
+\end{pmatrix}}
+=
+{\begin{pmatrix}
+1-\alpha h_t + \mu & - \mu\\
+1 & 0 \\
+\end{pmatrix}}
+{\begin{pmatrix}
+y_t \\
+y_{t-1} \\
+\end{pmatrix}}
+=\mat{T}_t
+{\begin{pmatrix}
+y_t \\
+y_{t-1} \\
+\end{pmatrix}},
+\end{align}
+where $y_t\triangleq x_t - x^*$.
+Now, assume that the following condition holds for all $t$:
+\begin{align}
+{(1-\sqrt{\mu})^2\over \alpha} &\leq h_t \leq {(1+\sqrt{\mu})^2\over \alpha}.
+\label{equ:control_condition_scalar}
+\end{align}
+then the spectral radius of $\mat{T}_t$ is controlled by momentum with
+$	\rho(\mat{T}_t) = \sqrt{\mu}.$
+\end{corollary}
+
+\begin{lemma}
+Let $\rho(\mat{S})$ be the spectral radius of matrix 
+\begin{equation}
+	%\rho_V(\alpha, \mu) = \rho \left(
+\mat{S} = {\begin{pmatrix}
+(\mat{I}-\alpha \mat{H} + \mu \mat{I})^T(\mat{I}-\alpha \mat{H} + \mu \mat{I}) &  \mu^2 \mat{I} & -2\mu(\mat{I}-\alpha \mat{H} + \mu \mat{I})\\
+\mat{I} & \mat{0} & \mat{0} \\
+\mat{I}-\alpha \mat{H} + \mu \mat{I} & \mat{0} & - \mu \mat{I} 
+\end{pmatrix}}
+	%\right)
+\end{equation}
+$\rho(\mat{S})=\mu$ if the following condition holds for all eigenvalues $\rho(\mat{H})$ of $\mat{H}\in \mathbb{R}^{n \times n}$
+\begin{equation}
+{(1-\sqrt{\mu})^2\over \alpha} \leq \rho(\mat{H}) \leq {(1+\sqrt{\mu})^2\over \alpha}
+\label{equ:control_condition_var}
+\end{equation}
+
+\begin{proof}
+	Let $\lambda$ be an eigenvalue of matrix $\mat{S}$, it gives 
+$\det\left(\mat{S} - \lambda \mat{I} \right) = 0$ which can be alternatively expressed as
+\begin{equation}	
+\det \left( \mat{S} - \lambda \mat{I}\right) = \det{\mat{D}} \det{\left(\mat{A} - \mat{B} \mat{D}^{-1}
+\mat{C} \right)} = 0
+\label{equ:control_condition_var_1}
+\end{equation}
+assuming $\mat{D}$ is invertible, i.e. $\lambda + \mu \neq 0$, where \begin{equation*}
+		\mat{A} = \left( { \begin{array}{c c}
+ 			\mat{M}^T\mat{M} - \lambda \mat{I} &  \mu^2 \mat{I} \\
+ 			\mat{I} & - \lambda \mat{I}
+ 		\end{array} } \right), 
+ 		\mat{B} = \left( { \begin{array}{c}
+ 			-2\mu \mat{M} \\
+ 			\mat{0}
+ 		\end{array}}\right),
+ 		\mat{C} = \left( {\begin{array}{c}
+ 			\mat{M} \\
+ 			\mat{0}
+ 		\end{array}} \right)^T,
+ 		\mat{D} = -\mu \mat{I} - \lambda \mat{I}
+	\end{equation*}
+	with $\mat{M}=\mat{I}-\alpha \mat{H} + \mu \mat{I}$. It can be transformed using straight-forward algebra as
+	\begin{equation}
+		\det \left( \begin{array}{c c}
+ 			(\lambda - \mu) \mat{M}^T\mat{M} - (\lambda + \mu) \lambda \mat{I} & (\lambda + \mu)\mu^2 \mat{I} \\
+ 			(\lambda + \mu) \mat{I} & -(\lambda + \mu)\lambda \mat{I}
+ 		\end{array} \right)
+		\label{equ:control_condition_var_2}	
+	\end{equation}
+	Using similar simplification technique as in Equation~\eqref{equ:control_condition_var_1}, we can further simplify into
+	\begin{equation}
+		(\lambda - \mu)\det \left( (\lambda + \mu)^2 \mat{I} - \lambda \mat{M}^T\mat{M} \right) = 0
+	\end{equation}
+	if $\lambda \neq \mu$, as $(\lambda + \mu)^2 \mat{I} - \lambda \mat{M}^T\mat{M}$ is diagonalizable, we have $(\lambda + \mu)^2 - \lambda \rho(\mat{M})^2 = 0$ with $\rho(\mat{M})$ being an eigenvalue of $\mat{M}$. The analytic solution to the equation can be explicitly expressed as
+	\begin{equation}
+		\lambda = \frac{\rho(\mat{M})^2 - 2\mu \pm \sqrt{(\rho(\mat{M})^2 - 2\mu)^2 - 4\mu^2}}{2}
+		\label{equ:control_condition_var_3}	
+	\end{equation}.
+	
+	When the condition in Equation~\eqref{equ:control_condition_var} holds, we have $(1 - \alpha \rho(\mat{H}_t) + \mu)^2 \leq 4\mu$. One can verify that 
+	
+	\begin{equation}
+		\begin{aligned}
+			(\rho(\mat{M})^2 - 2\mu)^2 - 4\mu^2 & = && (\rho(\mat{M})^2 - 4\mu)\rho(\mat{M})^2 \\
+			& = &&\left( (1 - \alpha \rho(\mat{H} ) + \mu)^2 - 4\mu\right)\rho(\mat{M})^2 \\
+			& \leq && 0
+		\end{aligned}
+	\end{equation}
+	Thus the roots in~\eqref{equ:control_condition_var_3} are conjugate and we have $| \lambda | = \mu$. In conclusion, the condition in Equation~\eqref{equ:control_condition_var} can guarantee all the eigenvalues of $\mat{S}$ has magnitude $\mu$. Thus the spectral radius of $\mat{S}$ is controlled by $\mu$
+\end{proof}
+
+\end{lemma}
+
+\begin{corollary}
+	
+Let $\rho(\mat{S})$ be the spectral radius of matrix 
+\begin{equation}
+	%\rho_V(\alpha, \mu) = \rho \left(
+\mat{S} = {\begin{pmatrix}
+(1-\alpha h + \mu)^2 &  \mu^2 & -2\mu(1-\alpha h + \mu)\\
+1 & 0 & 0 \\
+1-\alpha h + \mu & 0 & - \mu
+\end{pmatrix}}
+	%\right)
+\end{equation}
+where $h\in \mathbb{R}$.
+$\rho(\mat{S})=\mu$ if the following condition holds for
+\begin{equation}
+{(1-\sqrt{\mu})^2\over \alpha} \leq h \leq {(1+\sqrt{\mu})^2\over \alpha}
+\label{equ:control_condition_var}
+\end{equation}
+
+\end{corollary}
+
+\begin{theorem}
+refer to the main content to theorem 2. \textbf{We need to assume quadratic in this theorem}
+\begin{proof}
+	From the recurrence of momentum SGD, we have $x_{t+1} = x_t - \alpha \nabla f_{S_t} (x_t) + \mu (x_t - x_{t-1})$. And the expected squared distance to the optimal point can be decomposed as $\E \| x_t - x^* \|^2 = \E \| x_t - \overline{x}_t \|^2 + \| \overline{x}_t- x^* \|^2$, where $\overline{x}_t$ is the expectation of $x_t$.
+	Without loss of generality, we assume the optimum $x^*=0$ and investigate the bias term $\| \overline{x}_t- x^* \|^2$ and variance term $\E \| x_t - \overline{x}_t \|^2$ respectively.
+	
+	For the bias term, we have $\| \overline{x}_{t + 1} \|^2 = \| \overline{x}_t - \alpha \nabla f( \overline{x}_t) + \mu ( \overline{x}_t -  \overline{x}_{t - 1})\|^2$
+	\begin{equation}
+		\left(\begin{array}{c}
+		 \overline{x}_{t+1} \\
+		 \overline{x}_{t}	
+		\end{array}\right) =
+		\left(\begin{array}{c c}
+			1 - \alpha h_t + \mu & - \mu \\
+			1 & 0
+		\end{array}\right)
+		\left(\begin{array}{c}
+		 \overline{x}_{t} \\
+		 \overline{x}_{t-1}	
+		\end{array}\right)
+	\end{equation}
+	
+	For the variance term recurrence, we have $\nabla f(x_t) = h x_t$ 
+	\begin{equation}
+		\begin{aligned}
+			\E \| x_{t + 1} - \overline{x}_{t + 1} \|^2 = \E \| x_{t} - \alpha \nabla f_{S_t}(x_t) + \mu (x_{t} - x_{t - 1})
+				- \overline{x_t} + \alpha \nabla f(\overline{x}_t) - \mu (
+				\overline{x}_t - \overline{x}_{t - 1}) \|^2 
+		\end{aligned}
+	\end{equation} 
+\end{proof}
+
+\end{theorem}
+
+
+
+
+
+
+

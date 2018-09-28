@@ -1,0 +1,51 @@
+\section{Model specification}
+\label{sec:model_spec}
+The model specification is shown in Table~\ref{tab:model_specification} for all the experiments in Section~\ref{sec:experiments}. 
+CIRAR10 ResNet uses the regular ResNet units while CIFAR100 ResNet uses the bottleneck units. Only the convolutional layers are shown with filter size, filter number as well as the repeating count of the units. The layer counting for ResNets also includes batch normalization and Relu layers. The LSTM models are also diversified for different tasks with different vocabulary sizes, word embedding dimensions and number of layers.
+\begin{table}
+\vspace{1em}
+\begin{small}
+\centering
+	\begin{tabular}{c@{\hskip 0.1in} c@{\hskip 0.1in} c@{\hskip 0.1in} c@{\hskip 0.1in} c@{\hskip 0.1in} c}
+	\toprule
+	network & \# layers & Conv 0 & Unit 1s & Unit 2s & Unit 3s \\
+	%\midrule 
+	\midrule
+	CIFAR10 ResNet & 110 
+	& $\left[\begin{array}{c c} 3 \times 3, & 4 \end{array} \right] $
+	& $\left[\begin{array}{c c} 3 \times 3, & 4  \\ 3\times 3, & 4\end{array} \right]\times 6 $ 
+	& $\left[\begin{array}{c c} 3 \times 3, & 8  \\ 3\times 3, & 8\end{array} \right]\times 6 $
+	& $\left[\begin{array}{c c} 3 \times 3, & 16  \\ 3\times 3, & 16\end{array} \right]\times 6 $
+	\\
+	\midrule
+	CIFAR100 ResNet & 164 
+	& $\left[\begin{array}{c c} 3 \times 3, & 4 \end{array} \right] $
+	& $\left[\begin{array}{c c} 1 \times 1, & 16  \\ 3\times 3, & 16 \\ 1 \times 1, & 64  \end{array} \right]\times 6  $
+	& $\left[\begin{array}{c c} 1 \times 1, & 32  \\ 3\times 3, & 32 \\ 1 \times 1, & 128  \end{array} \right]\times 6  $
+	& $\left[\begin{array}{c c} 1 \times 1, & 64  \\ 3\times 3, & 64 \\ 1 \times 1, & 256  \end{array} \right]\times 6  $ 
+		\\
+%	\midrule
+%		CIFAR100 ResNext & 164 
+%	& $\left[\begin{array}{c c} 3 \times 3, & 4 \end{array} \right] $
+%	& $\left[\begin{array}{c c} 1 \times 1, & 16  \\ 3\times 3, & 16 \\ 1 \times 1, & 64  \end{array} \right]\times 6  $
+%	& $\left[\begin{array}{c c} 1 \times 1, & 32  \\ 3\times 3, & 32 \\ 1 \times 1, & 128  \end{array} \right]\times 6  $
+%	& $\left[\begin{array}{c c} 1 \times 1, & 64  \\ 3\times 3, & 64 \\ 1 \times 1, & 256  \end{array} \right]\times 6  $ 
+%		\\
+	\midrule
+	\midrule
+	network & \# layers & Word Embed. & Layer 1 & Layer 2 & Layer 3 \\
+	\midrule
+	TS LSTM & 2 & [65 vocab, 128 dim] & 128 hidden units & 128 hidden units & --  \\
+	\midrule
+	PTB LSTM & 2 & [10000 vocab, 200 dim] & 200 hidden units & 200 hidden units & -- \\
+	\midrule
+	WSJ LSTM & 3 & [6922 vocab, 500 dim] & 500 hidden units & 500 hidden units & 500 hidden units\\
+%	\midrule
+%	PTB Tied LSTM & 2 & [10000 vocab, 650 dim] & 650 hidden units & 650 hidden units & \\
+	\bottomrule
+	\end{tabular}
+\end{small}
+\caption{Specification of ResNet and LSTM model architectures.}
+\label{tab:model_specification}
+\end{table}
+

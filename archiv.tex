@@ -1,0 +1,577 @@
+\documentclass{article}
+
+
+\usepackage[verbose=true,letterpaper]{geometry}
+\usepackage[numbers]{natbib}
+
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+
+\usepackage{amsmath,amsbsy,amssymb,amsfonts,amsthm}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{xspace}
+\usepackage{color}
+\usepackage{algorithm, algpseudocode}
+\usepackage{wrapfig}
+\def\compactify{\itemsep=0pt \topsep=0pt \partopsep=0pt \parsep=0pt}
+
+\usepackage{setspace}
+\usepackage{enumitem}
+
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\mat}[1]{\bm{\mathit{#1}}}
+\algdef{SE}[VARIABLES]{States}{EndStates}
+   {\algorithmicvariables}
+   {\algorithmicend\ \algorithmicvariables}
+\algnewcommand{\algorithmicvariables}{\textbf{States}}
+\algrenewcommand\Return{\State \algorithmicreturn{} }
+\newcommand*{\AddNote}[4]{
+    \begin{tikzpicture}[overlay, remember picture]
+        \draw [decoration={brace,amplitude=0.5em},decorate,ultra thick,red]
+            ($(#3)!(#1.north)!($(#3)-(0,1)$)$) --  
+            ($(#3)!(#2.south)!($(#3)-(0,1)$)$)
+                node [align=center, text width=2.5cm, pos=0.5, anchor=west] {#4};
+    \end{tikzpicture}
+}
+
+
+\title{\tuner and the Art of Momentum Tuning}
+
+
+\author{
+  Jian Zhang, Ioannis Mitliagkas, Christopher R\'e \\
+  Department of Computer Science\\
+  Stanford University\\
+  \texttt{\{zjian,imit,chrismre\}@cs.stanford.edu} \\
+  %% examples of more authors
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \AND
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\newcommand{\tuner}{\textsc{YellowFin}\xspace}
+\newcommand{\asynctuner}{closed-loop \textsc{YellowFin}\xspace}
+\newcommand{\Asynctuner}{Closed-loop \textsc{YellowFin}\xspace}
+
+\newcommand{\yell}[1]{#1}
+\newcommand{\outline}[1]{}
+\newcommand{\forjian}[1]{{\color{magenta}FOR JIAN: #1}}
+\newcommand{\notes}[1]{{\color{green}NOTES: #1}}
+\newcommand{\jianedits}[1]{#1}
+
+\setlength{\parskip}{1.2ex}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent Hyperparameter tuning is one of the big costs of deep learning. 
+State-of-the-art optimizers, such as Adagrad, RMSProp and  Adam,
+make things easier by adaptively tuning an individual learning rate for each variable.
+This level of fine adaptation is understood to yield a more powerful method.
+However, our experiments, as well as recent theory by \citet{wilson2017marginal}, 
+show that hand-tuned stochastic gradient descent (SGD) achieves better results, at the same rate or faster.
+The hypothesis put forth is that adaptive methods converge to different minima \cite{wilson2017marginal}.
+Here we point out another factor: none of these methods tune their momentum parameter,
+known to be very important for deep learning applications \cite{sutskever2013importance}.
+Tuning the momentum parameter becomes even more important in asynchronous-parallel systems:
+recent theory \cite{mitliagkas2016asynchrony} shows that asynchrony introduces momentum-like dynamics,
+and that tuning down algorithmic momentum is important for efficient parallelization.  
+
+We revisit the simple momentum SGD algorithm and show that hand-tuning a single learning rate and momentum value makes it competitive with Adam.
+We then analyze its robustness in learning rate misspecification and objective curvature variation.
+Based on these insights, we design \tuner, an automatic tuner for both momentum and learning rate in SGD.
+\tuner optionally uses a novel momentum-sensing component along with a negative-feedback loop mechanism to compensate for the added dynamics of asynchrony on the fly.
+We empirically show \tuner converges in fewer iterations than Adam on large ResNet and LSTM models,
+	with a speedup up to $2.8$x in synchronous and $2.7$x in asynchronous settings.% on ResNet and LSTM models.
+\end{abstract}
+
+
+
+
+
+\section{Introduction}
+
+
+\outline{[Problem.]}
+Accelerated forms of stochastic gradient descent (SGD), pioneered by
+\citet{polyak1964some} and \citet{nesterov1983method}, are the de-facto
+training algorithms for deep learning.
+Their use requires a sane choice for their {\em hyperparameters}: 
+typically a {\em learning rate} and {\em momentum parameter} \citep{sutskever2013importance}.
+However, tuning hyperparameters is arguably the most time-consuming part of deep learning, with thousands of productive hours sacrificed and many papers outlining best tuning practices written
+\cite{bengio2012practical,orr2003neural,bengio2012deep,bottou2012stochastic}.
+
+\outline{[previous approach]}
+Deep learning researchers have proposed a number of methods to deal with hyperparameter optimization. 
+Na\"ive methods, like the grid-search,
+are prohibitively expensive for all but the smallest problems. 
+Smart black-box methods \cite{bergstra2012random,snoek2012practical}
+do not explicitly take into account the problem specifics and spend time testing multiple configurations.
+Adaptive methods provide an attractive alternative.
+They aim to tune a single run on the fly and have been largely successful in relieving practitioners of tuning the learning rate. 
+Algorithms like Adagrad \cite{duchi2011adaptive}, RMSProp \cite{tieleman2012lecture} and Adam \cite{kingma2014adam} use the magnitude of gradient elements to tune learning rates {\em individually for each variable}.
+\yell{
+This increased flexibility sounds great,
+however our experiments and recent analysis in literature \cite{wilson2017marginal} suggest that methods that adapt multiple learning rates, yield marginal benefits compared to momentum SGD.
+\citet{wilson2017marginal} argue that those methods also have worse generalization.
+We make another argument: adaptive methods also suffer because they do not tune their momentum parameter.
+}
+
+Momentum is a fundamental parameter at the heart of accelerated optimization,
+lending its name to the most ubiquitous accelerated method \cite{polyak1964some}, commonly referred to as {\em momentum}.
+Classic \cite{polyak1964some} and recent results \cite{sutskever2013importance} alike show that proper momentum tuning has a significant impact on training speed. 
+Momentum becomes even more critical on distributed systems. 
+Recently, \citet{mitliagkas2016asynchrony} showed that, in asynchronous-parallel systems---a popular design for efficient distributed training without synchronization 
+\cite{recht2011hogwild,dean2012large,chilimbi2014project,hadjis2016omnivore}---the system introduces momentum-like dynamics into the optimization.
+As a result,
+one should reduce the amount of algorithmic momentum to get fast convergence~\cite{hadjis2016omnivore}.
+As part of a collaboration with an industry affiliate and a big research lab, we were able to verify that tuning momentum improves convergence on thousand-node scales.
+However, grid-searching momentum on very large cluster jobs becomes especially challenging.
+Better understanding of momentum and its rich properties is interesting in its own right and could yield a next generation of adaptive methods that perform {\em automatic momentum tuning}. 
+
+
+
+
+\begin{wrapfigure}[13]{R}{0.47\textwidth}
+\vspace{-2.0em}
+\begin{minipage}{1.0\linewidth}
+\begin{figure}[H]
+	\includegraphics[width=1.\linewidth]{experiment_results/spotlight.pdf}
+	\caption{\tuner in comparison to Adam on a ResNet (CIFAR100, cf.\ Section~\ref{sec:experiments}).	
+	}
+\end{figure}
+\end{minipage}
+\end{wrapfigure}
+We revisit the basic SGD update that uses Polyak's momentum and a single learning rate for all variables.
+We empirically show that, when hand-tuned, momentum SGD achieves faster convergence than Adam for a large class of models.
+We then formulate the optimization update as a dynamical system and study certain robustness properties of the momentum operator.
+Building on our analysis, we design \tuner, an automatic hyperparameter tuner for momentum SGD.
+\tuner tunes the learning rate and momentum on the fly, and uses a novel {\em closed-loop control architecture} to compensate for the added dynamics of asynchrony.
+Specifically:
+\begin{itemize}[leftmargin=2em]
+\setlength\itemsep{0.2em}
+\item
+Our analysis in Section~\ref{sec:momentum_operator} shows that momentum is robust to learning rate misspecification and curvature variation,
+two desirable properties for deep learning.
+These properties stem from a known but obscure fact:
+the momentum operator's spectral radius is constant in a large subset of the hyperparameter space.
+\item
+In Section~\ref{sec:sync_tuner}, we use these robustness insights and a simple quadratic model analysis to design \tuner, an automatic tuner for momentum SGD.
+\tuner uses on-the-fly measurements from the gradients of the system to tune both learning rate and momentum.
+\item In Section~\ref{sec:async_tuner} we present \asynctuner, suited for asynchronous training.
+It measures the total momentum in a running system, including any asynchrony-induced momentum. 
+This measurement is used in a negative feedback loop to control the value of algorithmic momentum.% on the fly.
+
+\end{itemize}
+
+
+
+
+
+\outline{[empirical performance statement on \tuner]}
+In Section~\ref{sec:experiments}, we demonstrate empirically that \yell{on ResNets and LSTMs}
+\tuner  converges in fewer iterations compared to:
+(i) hand-tuned momentum SGD (a speedup of up to 2.2x);
+and (ii) hand-tuned Adam (up to 2.8x speedup).
+Under asynchrony, we demonstrate that state-of-the-art adaptive methods suffer due to lack of momentum tuning.
+In the same setting, the closed-loop control architecture speeds up \tuner by up to 2x, 
+making it at least 2.7x faster than Adam.
+We conclude with related work in Section~\ref{sec:related} and discussion in Section~\ref{sec:discussion}.
+We release a TensorFlow implementation of \tuner, that can be used as drop-in replacement for any optimizer\footnote{Our TensorFlow implementation can be accessed at \url{https://github.com/JianGoForIt/YellowFin}.}.
+We are also planning a PyTorch release.
+
+
+
+
+\section{The momentum operator}
+\label{sec:momentum_operator}
+
+\newcommand{\gc}{generalized curvature\xspace}
+\newcommand{\Gc}{Generalized curvature\xspace}
+
+In this section we identify the main technical insights that guide the design of \tuner. 
+We first establish some preliminaries on momentum gradient descent 
+and then perform a simple dynamical analysis.
+We show that momentum is robust to learning rate misspecification and curvature variation for a class of non-convex objectives, two important properties for deep learning.
+
+
+
+\subsection{Preliminaries}
+\label{sec:robust_preliminaries}
+We aim to minimize some objective $f(x)$.
+In machine learning, $x$ is referred to as {\em the model} and the objective is some {\em loss function}.
+A low loss implies a well-fit model.
+Gradient descent-based procedures use the gradient of the objective function, $\nabla f(x)$, to update the model iteratively.
+Polyak's momentum gradient descent update \citep{polyak1964some} is given by
+\begin{align}
+	x_{t+1}  &= x_t - \alpha \nabla f(x_t) + \mu (x_t - x_{t-1}),
+	\label{eqn:momentum_gd}
+\end{align} 
+where $\alpha$ denotes the learning rate and $\mu$ the value of momentum used.
+Momentum's main appeal is its established ability to {\em accelerate convergence} \cite{polyak1964some}. 
+On a strongly convex smooth function with condition number $\kappa$, the optimal convergence rate of gradient descent ($\mu=0$)
+ is $O(\frac{\kappa-1}{\kappa+1})$~\cite{nesterov2013introductory}.
+\yell{On the other hand, for certain classes of strongly convex and smooth functions, like quadratics,  the optimal momentum value,
+\begin{equation}
+	\mu^* = \left(\frac{\sqrt{\kappa}-1}{\sqrt{\kappa}+1}\right)^2,
+	\label{eqn:optimal_momentum}
+\end{equation}
+yields the optimal accelerated rate $O(\frac{\sqrt{\kappa}-1}{\sqrt{\kappa}+1})$}.\footnote{
+\yell{
+This guarantee does not generalize to arbitrary strongly convex functions \cite{lessard2016analysis}.
+Nonetheless, acceleration is typically observable in practice (cf. Section~\ref{sec:robust_properties}).
+}
+}
+This is the smallest value of momentum that {\bf ensures the same rate of convergence along all directions}.
+This fact is often hidden away in proofs. 
+We shed light on some of its previously unknown implications in Section~\ref{sec:robust_properties}. % and use them in our tuner in Section~\ref{sec:sync_tuner}.
+
+
+
+\subsection{Robustness properties of the momentum operator}
+\label{sec:robust_properties}
+In this section we analyze the dynamics of momentum on a simple class of one dimensional, non-convex objectives.
+We first introduce the notion of {\em generalized curvature} and use it to describe the momentum operator.
+Then we discuss some properties of the momentum operator.
+
+
+\begin{definition}[\Gc]
+\label{def:generalized_curvature}
+The derivative of $f(x):\mathbb{R}\rightarrow\mathbb{R}$, can be written as 
+\begin{equation}
+	 f'(x) = h(x) (x - x^*) 
+	\label{eqn:generalized_curvature}
+\end{equation}
+for some $h(x) \in \mathbb{R}$, where $x^*$ is the global minimum of $f(x)$.
+We call $h(x)$ the {\em generalized curvature}.
+\end{definition}
+
+The \gc describes, in some sense, curvature with respect to the optimum,  $x^*$.
+For quadratic objectives, it coincides with the standard definition of curvature.
+It is the sole quantity related to the objective that influences the dynamics of gradient descent.
+For example, the contraction of a gradient descent step is $1-\alpha h(x_t)$.
+Let $\mat{A}_t$ denote the {\em momentum operator} at time $t$.
+Using a state-space augmentation, we can express the momentum update as
+\begin{align}
+{\begin{pmatrix}
+x_{t+1} - x^*\\
+x_t - x^* \\
+\end{pmatrix}}
+=
+{\begin{bmatrix}
+1-\alpha h(x_t) + \mu & - \mu \\
+1 & 0 \\
+\end{bmatrix}}
+{\begin{pmatrix}
+x_t - x^* \\
+x_{t-1} - x^*\\
+\end{pmatrix}}
+\triangleq
+\mat{A}_t
+{\begin{pmatrix}
+x_t - x^* \\
+x_{t-1} - x^*\\
+\end{pmatrix}}.
+\label{equ:one_dim_22_rec}
+\end{align}
+
+\begin{lemma}[Robustness of the momentum operator]
+\label{lem:robustness}
+If the generalized curvature, $h$, and hyperparameters $\alpha,\mu$ are in the {\em robust region}, that is: 
+\begin{align}
+{(1-\sqrt{\mu})^2} &\leq \alpha h(x_t) \leq {(1+\sqrt{\mu})^2},
+\label{eqn:robust_region}
+\end{align}
+then the spectral radius of the momentum operator only depends on  momentum: $	\rho(\mat{A}_t) = \sqrt{\mu}
+$. 
+\end{lemma}
+We can explain Lemma~\ref{lem:robustness} as robustness with respect to learning rate and to variations in curvature.
+
+
+
+\begin{wrapfigure}[15]{R}{0.3\textwidth}
+\vspace{-2.5em}
+\begin{minipage}{1.0\linewidth}
+\begin{figure}[H]
+  \includegraphics[width=1.0\linewidth]{figures/spectral_radii}
+\caption{
+Spectral radius of momentum operator on scalar quadratic.
+}
+\label{fig:lr_robustness}
+\end{figure}
+\end{minipage}
+\end{wrapfigure}
+\paragraph{Momentum is robust to learning rate misspecification}
+\label{sec:lr_robustness}
+For a one dimensional strongly convex quadratic objective,
+we get $h(x)=h$ for all $x$ and Lemma~\ref{lem:robustness} suggests that $\rho(\mat{A}_t)=\sqrt{\mu}$ as long as
+\begin{align}
+{(1-\sqrt{\mu})^2/h} &\leq \alpha \leq {(1+\sqrt{\mu})^2/h}.
+\label{eqn:lr_robustness}
+\end{align}
+
+In Figure~\ref{fig:lr_robustness}, we plot $\rho(\mat{A}_t)$ for different $\alpha$ and $\mu$.
+As we increase the value of momentum, the optimal rate of convergence $\sqrt{\mu}$ is achieved by an ever-widening range of learning rates. 
+Furthermore, for objectives with large condition number, higher values of momentum are {\em both faster and more robust}.
+{\bf This property influences the design of our tuner:} as long as the learning rate satisfies \eqref{eqn:lr_robustness}, we are in the {\em robust region} and 
+expect the same asymptotics. For example a convergence rate of $\sqrt{\mu}$ for quadratics, independent of the learning rate.
+Having established that, we can just focus on optimally tuning momentum.
+
+
+
+
+\paragraph{Momentum is robust to curvature variation}
+\label{sec:curvature_robustness}
+
+As discussed in Section~\ref{sec:robust_preliminaries}, the intuition hidden in classic results
+is that for strongly convex smooth objectives, the momentum value in \eqref{eqn:optimal_momentum} guarantees the same rate of convergence along all directions. 
+We extend this intuition to certain non-convex functions.
+Lemma~\ref{lem:robustness} guarantees a constant, time-homogeneous spectral radius for the momentum operators $(\mat{A}_t)_t$ if 
+\eqref{eqn:robust_region} is satisfied at every step. 
+This motivates an extension of the condition number.
+\begin{definition}[Generalized condition number]
+We define the generalized condition number (GCN) of a scalar function, $f(x):\mathbb{R}\rightarrow \mathbb{R}$, to be the dynamic range of its generalized curvature, $h(x)$:
+\begin{equation}
+	\nu = \frac{\sup_{x \in dom(f)} h(x)}{ \inf_{x \in dom(f)} h(x)}
+\end{equation}
+\end{definition}
+The GCN captures variations in generalized curvature along a scalar slice.
+From Lemma~\ref{lem:robustness} we get
+\begin{equation}
+	\mu^* = \left(\frac{\sqrt{\nu}-1}{\sqrt{\nu}+1}\right)^2,
+	\quad
+	\alpha^* = \frac{(1-\sqrt{\mu})^2}{\inf_{x \in dom(f)}h(x)}
+	\label{eqn:noiseless_tuning_rule}
+\end{equation}
+as the optimal hyperparameters. 
+Specifically, $\mu^*$ is the smallest momentum value that guarantees a homogeneous spectral radius of $\sqrt{\mu^*}$ for all $(\mat{A}_t)_t$.
+The spectral radius of an operator describes its asymptotic behavior. 
+However, the product of a sequence of operators $\mat{A}_t\cdots\mat{A}_1$ all with spectral radius $\sqrt{\mu}$ does not necessarily follow the asymptotics of $\sqrt{\mu}^t$.
+In other words, {\em we do not provide a convergence rate guarantee}.
+Instead, we provide empirical evidence in support of this intuition. 
+
+
+For example, the non-convex objective in Figure~\ref{fig:curvature_robustness}(a),
+composed of two quadratics with curvatures $1$ and $1000$, has a GCN of $1000$.
+Using the tuning rule of \eqref{eqn:noiseless_tuning_rule}, and running the momentum algorithm (Figure~\ref{fig:curvature_robustness}(b)) yields a practically constant rate of convergence throughout.
+In Figures~\ref{fig:curvature_robustness}(c,d) we demonstrate that for an LSTM,
+the majority of variables follows a $\sqrt{\mu}$ convergence rate.
+\textbf{This property influences the design of our tuner:}
+in the next section we use the tuning rules of \eqref{eqn:noiseless_tuning_rule} in \tuner,
+generalized appropriately to handle SGD noise.
+
+
+
+
+
+
+\begin{figure}[t]
+\centering
+\begin{tabular}{c c c c}
+  \includegraphics[width=0.23\linewidth]{figures/non_convex_toy} &
+  \includegraphics[width=0.24\linewidth]{figures/non_convex_constant_rate} &
+  \includegraphics[width=0.24\linewidth]{figures/constant_rate_09} &
+  \includegraphics[width=0.19\linewidth]{figures/constant_rate_099} \\
+  (a) & (b) & (c) &(d)
+\end{tabular}
+\caption{(a) Non-convex toy example;
+(b) constant convergence rate achieved empirically on the objective of (a) tuned according to \eqref{eqn:noiseless_tuning_rule};
+(c,d)
+LSTM on MNIST: as momentum increases, more variables (shown in grey) fall in the robust region and follow the robust rate, $\sqrt{\mu}$.}
+\label{fig:curvature_robustness}
+\end{figure}
+
+
+
+
+
+
+
+
+
+
+
+\input{tuner}
+
+
+\section{\Asynctuner}
+\label{sec:async_tuner}
+To handle the momentum dynamics of asynchronous parallelism, we propose a {\em closed momentum loop} variant of \tuner.
+After some preliminaries, we show the mechanism of the extension: 
+it measures the dynamics on a running system and controls momentum with a negative feedback loop.
+\paragraph{Preliminaries}
+Asynchrony is a popular parallelization technique \cite{recht2011hogwild} that avoids synchronization barriers.
+When training on $M$ asynchronous workers, staleness (the number of model updates between a worker's read and write operations) is on average $\tau=M-1$,
+i.e., the gradient in the SGD update is delayed by $\tau$ iterations as $\nabla f_{S_{t - \tau}}(x_{t - \tau} )$.
+Asynchrony yields faster steps, but can
+increase the number of iterations to achieve the same solution,
+a tradeoff between hardware and statistical 
+efficiency~\citep{DBLP:journals/pvldb/ZhangR14}.
+\citet{mitliagkas2016asynchrony} interpret asynchrony as added momentum dynamics.
+Experiments in \citet{hadjis2016omnivore} support this finding, and demonstrate that reducing algorithmic momentum can compensate for asynchrony-induced momentum
+and significantly reduce the number of iterations for convergence.
+Motivated by that result, we use the model
+in~\eqref{equ:exp_async_update}, where the total momentum, $\mu_T$, includes both asynchrony-induced and algorithmic  momentum, $\mu$, in~\eqref{eqn:momentum_gd}.
+\begin{equation}
+	\mathbb{E}[ x_{t+1} - x_t ] 
+	= \mu_T \mathbb{E}[x_t - x_{t-1}] - \alpha \mathbb{E}\nabla f(x_{t})
+\label{equ:exp_async_update}
+\end{equation}
+We will use this expression to design an estimator for the value of total momentum, $\hat{\mu_T}$.
+This estimator is a basic building block of \asynctuner, that {\em removes the need to manually compensate for the effects of asynchrony}.
+
+
+
+\paragraph{Measuring the momentum dynamics}
+\Asynctuner estimates total momentum $\mu_{T}$ on a running system and uses a negative feedback loop to adjust algorithmic momentum accordingly.
+Equation~\eqref{equ:exp_async_update} gives an estimate of $\hat{\mu_T}$ on a system with staleness $\tau$, based on \eqref{equ:exp_async_update}.
+\begin{align}
+\hat{\mu_T}
+					= \mathop{\mathsf{median}}\left(
+							\frac{x_{t - \tau} - x_{t - \tau-1} + \alpha \nabla_{S_{t-\tau -1}} f(x_{t - \tau - 1} )}
+							{x_{t - \tau-1} - x_{t - \tau-2}}
+					\right)
+\label{eqn:momentum_measurement}
+\end{align}
+We use $\tau$-stale model values to match the staleness of the gradient,  and perform all operations in an elementwise fashion. 
+This way we get a total momentum measurement from each variable; 
+the median combines them into a more robust estimate.
+
+\label{subsec:closed_loop_YF}
+\begin{figure}
+\centering
+\includegraphics[width=0.95\linewidth]{experiment_results/resnet/mom_dynamic_3.pdf}
+	\caption{
+	Momentum dynamics on CIFAR100 ResNet.
+	Running \tuner, total momentum is equal to algorithmic momentum in a synchronous setting (left). Total momentum is greater than algorithmic momentum on 16 asynchronous workers, due to asynchrony-induced momentum (middle).
+	Using the momentum feedback mechanism of \asynctuner, lowers algorithmic momentum and brings total momentum to match the target value on 16 asynchronous workers (right).
+	Red dots are individual total momentum estimates, $\hat{\mu}_T$, at each iteration. 
+The solid red line is a running average of those estimates.	
+	}
+	\label{fig:we-can-measure}
+\end{figure}
+
+\paragraph{Closing the asynchrony loop}
+Given a reliable measurement of $\mu_{T}$, 
+we can use it to adjust the value of algorithmic momentum so that the total momentum matches the \emph{target momentum} as decided by \tuner in Algorithm~\ref{alg:basic-algo}.
+\Asynctuner in Algorithm~\ref{alg:async-algo} %(in Appendix~\ref{sec:async_yf}) 
+uses a simple negative feedback loop to achieve the adjustment.
+Figure~\ref{fig:we-can-measure} demonstrates that under asynchrony the measured total momentum is strictly higher than the algorithmic momentum (middle plot), as expected from theory;
+closing the feedback loop (right plot) leads to total momentum matching the target momentum.
+Closing the loop, as we will see, improves performance significantly.
+Note for asynchronous-parallel training, as the estimates and parameter tuning is unstable in the beginning when there are only a small number of iterations, we use initial learning $\frac{1}{\tau + 1}$ instead of $1.0$ to prevent overflow in the beginning. 
+\begin{algorithm}[H]
+	\caption{\Asynctuner}
+	\begin{algorithmic}[1]
+	\State Input: $\mu\gets0$, $\alpha \gets \frac{1}{\tau + 1}$, $\gamma\gets0.01, \tau$ (staleness)
+	\For { $t\gets1$ to $T$}
+	\State $x_t\!\gets\!x_{t - 1} + \mu (x_{t - 1} - x_{t - 2} ) - \alpha \nabla_{S_t} f(x_{t - \tau - 1} )$
+	\State $\mu^*,\alpha \gets \Call{\tuner}{\nabla_{S_t} f(x_{t - \tau - 1} ), \beta}$ %(get momentum from the dynamic range)
+	\State $\hat{\mu_T} 
+					\gets \mathop{\mathsf{median}}\left(
+							\frac{x_{t - \tau} - x_{t - \tau-1} + \alpha \nabla_{S_{t-\tau-1}} f(x_{t - \tau - 1} )}
+							{x_{t - \tau-1} - x_{t - \tau-2}}
+					\right)$ \Comment{Measuring total momentum}
+	\State $\mu \leftarrow \mu + \gamma \cdot (\mu^* - \hat{\mu_T})$ \Comment{Closing the loop}
+	\EndFor
+\end{algorithmic}
+\label{alg:async-algo}
+\end{algorithm}
+
+
+
+
+\input{experiments.tex}
+
+\vspace{-0.25em}
+\section{Related work}
+\label{sec:related}
+\vspace{-0.3em}
+Many techniques have been proposed on tuning hyperparameters for optimizers.~\citet{bergstra2012random} investigate random search for general tuning of  hyperparameters. 
+Bayesian approaches~\cite{snoek2012practical} model evaluation metrics as samples from a Gaussian process guiding optimal hyperparameter search. 
+Another trend is the adaptive methods which require less manual tuning than SGD:
+Adagrad~\cite{duchi2011adaptive} is one of the first method with per-dimension learning rate, followed by RMSProp~\cite{tieleman2012lecture} and Adam~\cite{chilimbi2014project} using different learning rate rules. 
+\citet{schaul2013no} use a noisy quadratic model similar to ours,
+however they tune per-variable learning rates and 
+do not use momentum.
+
+
+\vspace{-0.25em}
+\section{Discussion}
+\label{sec:discussion}
+\vspace{-0.3em}
+We presented \tuner, the first optimization method that automatically tunes momentum as well as the learning rate of momentum SGD. 
+\tuner outperforms the state-of-the-art in optimizing a large class of models both in synchronous and asynchronous settings.
+It estimates statistics purely from the gradients of a running system,
+and then tunes the hyperparameters of momentum SGD based on noisy, local quadratic approximations.
+As future work, we believe that more accurate curvature estimation methods,
+like the $bbprop$ method~\cite{martens2012estimating} can further improve \tuner.
+We also believe that our closed-loop momentum control mechanism in Section~\ref{sec:async_tuner} 
+could be applied to other adaptive methods and improve performances in asynchronous-parallel settings.
+
+
+\section{Acknowledgements}
+We thank Bryan He, Paroma Varma, Chris De Sa and Theodoros Rekatsinas for helpful discussions. We gratefully acknowledge the support of the Defense Advanced Research Projects Agency (DARPA) SIMPLEX program under No. N66001-15-C-4043, the D3M program under No. FA8750-17-2-0095, the National Science Foundation (NSF) CAREER Award under No. IIS- 1353606, the Office of Naval Research (ONR) under awards No. N000141210041 and No. N000141310129, a Sloan Research Fellowship, the Moore Foundation, an Okawa Research Grant, Toshiba, and Intel. Any opinions, findings, and conclusions or recommendations expressed in this material are those of the authors and do not necessarily reflect the views of DARPA, NSF, ONR, or the U.S. government.
+
+
+\bibliographystyle{unsrtnat}
+\bibliography{arxiv}
+
+\appendix 
+\input{main_lemma}
+%\input{multi_dim}
+%\input{dist_small_lstm}
+\input{opt}
+%\input{async_yf}
+\input{model_spec}
+\input{exp_spec}
+%\input{test_perp}
+
+
+
+
+
+\end{document}

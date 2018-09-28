@@ -1,0 +1,141 @@
+\subsection{Measurement functions in \tuner}
+\label{sec:oracles}
+This section describes our implementation of the measurement oracles used by \tuner: \textproc{CurvatureRange}, \textproc{Variance}, and \textproc{Distance}.
+We design the measurement functions with the assumption of a negative log-probability objective; this is in line with typical losses in machine learning, e.g. cross-entropy for neural nets and maximum likelihood estimation in general.
+Under this assumption, the Fisher information matrix---i.e.\ the expected outer product of noisy gradients---approximates the Hessian of the objective~\citep{johnfisherinfo2016,pascanu2013revisiting}. This allows for measurements purely being approximated from minibatch gradients with overhead linear to model dimensionality.
+These implementations are not guaranteed to give accurate measurements.
+Nonetheless, their use in our experiments in Section~\ref{sec:experiments} shows that they are sufficient for \tuner to outperform the state of the art on a variety of objectives. We also refer to Appendix~\ref{sec:practical_impl} for details on zero-debias~\citep{kingma2014adam}, slow start~\citep{schaul2013no} and smoothing for curvature range estimation.
+
+%\begin{minipage}{0.37\textwidth}
+%\algrenewcommand\alglinenumber[1]{\scriptsize #1:}
+%	\begin{algorithm}[H]
+%	\scriptsize
+%	\caption{\small Curvature range}
+%	\begin{algorithmic}
+%		\State \textbf{state: } $h_{\max}$, $h_{\min}$, $h_i, \forall i \in\{1,2,3,...\}$
+%		\Function{CurvatureRange}{gradient $g_t$, $\beta$}
+%			\State $h_t \gets \| g_t \|^2$
+%			\State $h_{\max,t}\!\!\gets\!\!\!\!\!\!\!\max\limits_{t - w \leq i \leq t}\!h_i$, $h_{\min,t}\!\!\gets\!\!\!\!\!\!\!\min\limits_{t - w \leq i \leq t}\!h_i$
+%			\State $h_{\max} \gets \beta \cdot h_{\max} + (1 - \beta) \cdot h_{\max,t}$ %\hfill Smoothed largest curvature.
+%			\State $h_{\min} \gets \beta \cdot h_{\min} + (1 - \beta) \cdot h_{\min,t}$ %\hfill Smoothed smallest curvature.
+%			\Return $h_{\max}$, $h_{\min}$
+%		\EndFunction
+%	\end{algorithmic}
+%	\label{alg:curv_func}
+%	\end{algorithm}
+%\end{minipage}
+%\begin{minipage}{0.315\textwidth}
+%\algrenewcommand\alglinenumber[1]{\scriptsize #1:}
+%	\begin{algorithm}[H]
+%	\scriptsize
+%	\setstretch{1.5}
+%	\caption{\small Gradient variance}
+%	\begin{algorithmic}
+%	\State \textbf{state: } $\overline{g^2}\gets0$, $\overline{g}\gets0$
+%	\Function{Variance}{gradient $g_t$, $\beta$}
+%		\State $\overline{g^2}\gets\beta \cdot \overline{g^2} + (1 - \beta) \cdot g_t \odot g_t$
+%		\State $\overline{g}\gets\beta \cdot \overline{g} + (1 - \beta) \cdot g_t$
+%		\Return $\| \overline{g^2} - \overline{g}^2 \|_1$ %\hfill Sum of elements in the vect
+%	\EndFunction
+%	\end{algorithmic}
+%	\label{alg:var_func}
+%	\end{algorithm}
+%\end{minipage}
+%\begin{minipage}{0.3\textwidth}
+%\algrenewcommand\alglinenumber[1]{\scriptsize #1:}
+%	\begin{algorithm}[H]
+%	\scriptsize
+%	\setstretch{1.25}
+%	\caption{\small Distance to opt.}
+%	\begin{algorithmic}
+%	\State \textbf{state: } $\overline{\|g\|}\gets0$, $\overline{h}\gets0$
+%		\Function{Distance}{gradient $g_t$, $\beta$}
+%		\State $\overline{\|g\|}\gets \beta \cdot \overline{\|g\|} + (1 - \beta) \cdot \|g_t\|$
+%		\State $\overline{h} \gets \beta \cdot \overline{h} + (1 - \beta) \cdot \| g_t \|^2$
+%		\State $D \gets \beta \cdot D + (1 - \beta) \cdot \overline{\|g\|} /\overline{h}$
+%		\Return $D$
+%	\EndFunction
+%	\end{algorithmic}
+%	\label{alg:dist_func}
+%	\end{algorithm}
+%\end{minipage}
+
+\paragraph{Curvature range}
+Let $g_t$ be a noisy gradient, we estimate the curvatures range in Algorithm~\ref{alg:curv_func}. We notice that the outer product $g_tg_t^T$ has an eigenvalue $h_t=\| g_t \|^2$ with eigenvector $g_t$. Thus under our negative log-likelihood assumption, we use $h_t$ to approximate the curvature of Hessian along gradient direction $g_t$. Note here we use empirical Fisher $g_tg_t^T$ instead of Fisher information matrix. Empirical Fisher is typically used in practical natural gradient methods~\citep{martens2014new, roux2008topmoumoute, duchi2011adaptive}. For practically efficient measurement, we use the empirical Fisher as a coarse proxy of Fisher information matrix which approximates the Hessian of the objective. 
+Specifically in Algorithm~\ref{alg:curv_func}, we maintain $h_{\min}$ and $h_{\max}$ as running averages of extreme curvature $h_{\min, t}$ and $h_{\max, t}$, from a sliding window of width 20\footnote{We use window width 20 across all the models and experiments in our paper. We refer to Section~\ref{sec:experiments} for details on selecting the window width}.
+As gradient directions evolve, we estimate curvatures along different directions. Thus $h_{\min}$ and $h_{\max}$ capture the curvature variations.
+
+%\vspace{-0.5em}
+\paragraph{Gradient variance}
+To estimate the gradient variance in Algorithm~\ref{alg:var_func}, 
+we use running averages $\overline{g}$ and $\overline{g^2}$ to keep track of $g_t$ and $g_t \odot g_t$, the first and second order moment of the gradient. 
+As $\Var(g_t) = \E{g_t^2} - \E{g_t} \odot \E{g_t}$, we estimate the gradient variance $C$ in \eqref{equ:noisy_min} using $C=\bm{1}^T\!\!\cdot(\overline{g^2} - \overline{g}^2)$. %To get stable estimates, we use $C$, the running average of $C_t$ as the quantity representing gradient variance.
+
+%\vspace{-0.25em}
+\paragraph{Distance to optimum}
+In Algorithm~\ref{alg:dist_func}, we estimate the distance to the optimum of the local quadratic approximation.
+Inspired by the fact that $\| \nabla f(\mat{x}) \| \leq \| \mat{H} \| \| \mat{x} - \mat{x}^{\star}\|$ for a quadratic $f(x)$ with Hessian $\mat{H}$ and minimizer $\mat{x}^{*}$,  
+we first maintain $\overline{h}$ and $\overline{\|g\|}$ as running averages of curvature $h_t$ and gradient norm $\| g_t \|$. Then the distance is approximated using $\overline{\|g\|} / \overline{h}$. %according to inequality $\| \nabla f(\mat{x}) \| \leq \| \mat{H} \| \| \mat{x} - \mat{x}^{\star}\|$.
+
+%\begin{minipage}{0.37\textwidth}
+%\algrenewcommand\alglinenumber[1]{\scriptsize #1:}
+%	\begin{algorithm}[H]
+%	\scriptsize
+%	\caption{\small Curvature range}
+%	\begin{algorithmic}
+%		\State \textbf{state: } $h_{\max}$, $h_{\min}$, $h_i, \forall i \in\{1,2,3,...\}$
+%		\Function{CurvatureRange}{gradient $g_t$, $\beta$}
+%			\State $h_t \gets \| g_t \|^2$
+%			\State $h_{\max,t}\!\!\gets\!\!\!\!\!\!\!\max\limits_{t - w \leq i \leq t}\!h_i$, $h_{\min,t}\!\!\gets\!\!\!\!\!\!\!\min\limits_{t - w \leq i \leq t}\!h_i$
+%			\State $h_{\max} \gets \beta \cdot h_{\max} + (1 - \beta) \cdot h_{\max,t}$ %\hfill Smoothed largest curvature.
+%			\State $h_{\min} \gets \beta \cdot h_{\min} + (1 - \beta) \cdot h_{\min,t}$ %\hfill Smoothed smallest curvature.
+%			\Return $h_{\max}$, $h_{\min}$
+%		\EndFunction
+%	\end{algorithmic}
+%	\label{alg:curv_func}
+%	\end{algorithm}
+%\end{minipage}
+%\begin{minipage}{0.315\textwidth}
+%\algrenewcommand\alglinenumber[1]{\scriptsize #1:}
+%	\begin{algorithm}[H]
+%	\scriptsize
+%	\setstretch{1.5}
+%	\caption{\small Gradient variance}
+%	\begin{algorithmic}
+%	\State \textbf{state: } $\overline{g^2}\gets0$, $\overline{g}\gets0$
+%	\Function{Variance}{gradient $g_t$, $\beta$}
+%		\State $\overline{g^2}\gets\beta \cdot \overline{g^2} + (1 - \beta) \cdot g_t \odot g_t$
+%		\State $\overline{g}\gets\beta \cdot \overline{g} + (1 - \beta) \cdot g_t$
+%		\Return $\| \overline{g^2} - \overline{g}^2 \|_1$ %\hfill Sum of elements in the vect
+%	\EndFunction
+%	\end{algorithmic}
+%	\label{alg:var_func}
+%	\end{algorithm}
+%\end{minipage}
+%\begin{minipage}{0.3\textwidth}
+%\algrenewcommand\alglinenumber[1]{\scriptsize #1:}
+%	\begin{algorithm}[H]
+%	\scriptsize
+%	\setstretch{1.25}
+%	\caption{\small Distance to opt.}
+%	\begin{algorithmic}
+%	\State \textbf{state: } $\overline{\|g\|}\gets0$, $\overline{h}\gets0$
+%		\Function{Distance}{gradient $g_t$, $\beta$}
+%		\State $\overline{\|g\|}\gets \beta \cdot \overline{\|g\|} + (1 - \beta) \cdot \|g_t\|$
+%		\State $\overline{h} \gets \beta \cdot \overline{h} + (1 - \beta) \cdot \| g_t \|^2$
+%		\State $D \gets \beta \cdot D + (1 - \beta) \cdot \overline{\|g\|} /\overline{h}$
+%		\Return $D$
+%	\EndFunction
+%	\end{algorithmic}
+%	\label{alg:dist_func}
+%	\end{algorithm}
+%\end{minipage}
+
+
+
+
+
+
+
+
+
